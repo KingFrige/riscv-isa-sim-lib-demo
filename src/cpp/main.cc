@@ -29,7 +29,6 @@ int main(int argc, char* argv[]) {
     
     cfg.isa = "rv64imafdcv";  // Standard RV64GC ISA
     cfg.priv = "MSU";        // Machine, Supervisor, and User privilege levels
-    cfg.misaligned = false;  // Don't allow misaligned memory accesses
     cfg.endianness = endianness_little;  // Little endian
     cfg.start_pc = START_PC;  // Start PC
     cfg.mem_layout.clear();

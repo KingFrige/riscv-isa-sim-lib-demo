@@ -17,6 +17,14 @@ demo:
 ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 VPATH := $(ROOT_DIR)
 
+SPIKE_SOURCE_DIR ?= $(ROOT_DIR)/../../riscv-isa-sim
+SPIKE_DIR = $(patsubst %/,%,$(SPIKE_SOURCE_DIR))
+SPIKE_BUILD_DIR = $(SPIKE_DIR)/build
+SPIKE_INSTALL_DIR = $(SPIKE_DIR)/install
+SPIKE_INC_DIR = $(SPIKE_INSTALL_DIR)/include
+SPIKE_CONFIGURE_STAMP = $(SPIKE_BUILD_DIR)/.configure_stamp
+
+
 # Source files
 CPPLIST := \
     demo_core.cc \
@@ -33,6 +41,7 @@ DEMO_CXXFLAGS := \
     -MMD \
     -std=c++17 \
     -I$(ROOT_DIR) \
+    -I$(SPIKE_INC_DIR) \
     $(CFLAGS)
 
 DEMO_LDFLAGS := -Wl,-rpath,\$$ORIGIN -Wl,-rpath,\$$ORIGIN/lib -Wl,--no-as-needed $(LDFLAGS)
@@ -60,7 +69,6 @@ clean:
 
 # TODO if we want a default value here, then there is no point in checking for it with
 # the check_spike_dir target.
-#SPIKE_SOURCE_DIR ?= $(ROOT_DIR)/../riscv-isa-sim
 
 # Check for required environment variable
 .PHONY: check_spike_dir
@@ -69,12 +77,6 @@ check_spike_dir:
 		echo "ERROR: SPIKE_SOURCE_DIR is not set. Please set it to point to your Spike repository and run ./src/setup.sh first"; \
 		exit 1; \
 	 fi
-
-# Directory definitions
-SPIKE_DIR = $(patsubst %/,%,$(SPIKE_SOURCE_DIR))
-SPIKE_BUILD_DIR = $(SPIKE_DIR)/build
-SPIKE_INSTALL_DIR = $(ROOT_DIR)/spike_install
-SPIKE_CONFIGURE_STAMP = $(SPIKE_BUILD_DIR)/.configure_stamp
 
 # Define base flags
 SPIKE_CLFAGS := -fPIC -O2

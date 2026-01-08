@@ -11,3 +11,6 @@ src/memory_simulator.d
 src/.vscode
 src/sw/main.o
 src/sw/start.o
+*.elf
+*.lst
+tags

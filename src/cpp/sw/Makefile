@@ -1,6 +1,6 @@
 # RISCV_PATH
 
-CC = $(RISCV_PATH)/bin/riscv64-unknown-elf-clang
+CC = $(RISCV_PATH)/bin/riscv64-unknown-elf-gcc
 OC = $(RISCV_PATH)/bin/riscv64-unknown-elf-objcopy
 OD = $(RISCV_PATH)/bin/riscv64-unknown-elf-objdump
 AS = $(RISCV_PATH)/bin/riscv64-unknown-elf-as
@@ -12,7 +12,7 @@ CFLAGS += -Wall
 CFLAGS += -Wno-unused-label
 CFLAGS += -Os
 CFLAGS += -march=rv64imafdcv
-CFLAGS += -fno-integrated-as
+CFLAGS += --no-integrated-cpp
 
 # Assembler
 ASFLAGS += -c

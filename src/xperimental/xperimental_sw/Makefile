@@ -3,7 +3,7 @@ $(error RISCV_PATH is not set)
 endif
 LD_LIB_DIR = $(RISCV_PATH)/lib
 
-CC = $(RISCV_PATH)/bin/riscv64-unknown-elf-clang
+CC = $(RISCV_PATH)/bin/riscv64-unknown-elf-gcc
 OC = $(RISCV_PATH)/bin/riscv64-unknown-elf-objcopy
 OD = $(RISCV_PATH)/bin/riscv64-unknown-elf-objdump
 AS = $(RISCV_PATH)/bin/riscv64-unknown-elf-as
@@ -15,7 +15,7 @@ CFLAGS += -Wall
 CFLAGS += -Wno-unused-label
 CFLAGS += -Os
 CFLAGS += -march=rv64imafdcv_zvl1024b
-CFLAGS += -fno-integrated-as
+CFLAGS += --no-integrated-cpp
 CFLAGS += -mcmodel=medany
 
 # Assembler

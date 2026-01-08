@@ -1,0 +1,301 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_OUTPUT_EXCMD	mixed	/number, pattern, mixed, or combineV2/
+!_TAG_OUTPUT_FILESEP	slash	/slash or backslash/
+!_TAG_OUTPUT_MODE	u-ctags	/u-ctags or e-ctags/
+!_TAG_PATTERN_LENGTH_LIMIT	96	/0 for no limit/
+!_TAG_PROC_CWD	/home/korben/workspace/project/riscv/spike-repo/riscv-isa-sim-lib-demo/src/cpp/	//
+!_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
+!_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
+!_TAG_PROGRAM_URL	https://ctags.io/	/official site/
+!_TAG_PROGRAM_VERSION	5.9.0	//
+$(SPIKE_CONFIGURE_STAMP)	Makefile	/^$(SPIKE_CONFIGURE_STAMP):$/;"	t
+%.elf	sw/Makefile	/^%.elf: $(OBJS)$/;"	t
+%.lst	sw/Makefile	/^%.lst: %.elf$/;"	t
+%.o	Makefile	/^%.o: %.cc$/;"	t
+%.o	sw/Makefile	/^%.o: %.S$/;"	t
+%.o	sw/Makefile	/^%.o: %.c$/;"	t
+.bss	sw/script.ld	/^  .bss : { *(.bss) }$/;"	S
+.data	sw/script.ld	/^  .data : { *(.data) }$/;"	S
+.srodata	sw/script.ld	/^  .srodata : { *(.srodata) }$/;"	S
+.text	sw/script.ld	/^  .text : { *(.text) }$/;"	S
+AS	sw/Makefile	/^AS = $(RISCV_PATH)\/bin\/riscv64-unknown-elf-as$/;"	m
+Building	sw/README.md	/^## Building$/;"	s	chapter:RISC-V Test Program
+CC	sw/Makefile	/^CC = $(RISCV_PATH)\/bin\/riscv64-unknown-elf-gcc$/;"	m
+CFLAGS	Makefile	/^CFLAGS := -Os -fPIC$/;"	m
+CPPLIST	Makefile	/^CPPLIST := \\$/;"	m
+C_SRC	sw/Makefile	/^C_SRC = .\/main.c$/;"	m
+Configuration	sw/README.md	/^## Configuration$/;"	s	chapter:RISC-V Test Program
+DEMO_CORE_H	demo_core.h	/^#define DEMO_CORE_H$/;"	d
+DEMO_CXXFLAGS	Makefile	/^DEMO_CXXFLAGS := \\$/;"	m
+DEMO_LDFLAGS	Makefile	/^DEMO_LDFLAGS := -Wl,-rpath,\\$$ORIGIN -Wl,-rpath,\\$$ORIGIN\/lib -Wl,--no-as-needed $(LDFLAGS)$/;"	m
+DEMO_LDLIBS	Makefile	/^DEMO_LDLIBS := -latomic -lriscv -lsoftfloat -ldisasm -lstdc++fs $(LDLIBS) $/;"	m
+DEPS	Makefile	/^DEPS := $(CPPLIST:.cc=.d)$/;"	m
+ELF_SWAP	util/elf.h	/^#define ELF_SWAP(/;"	d
+EM_NONE	util/elf.h	/^#define EM_NONE /;"	d
+EM_RISCV	util/elf.h	/^#define EM_RISCV /;"	d
+ET_EXEC	util/elf.h	/^#define ET_EXEC /;"	d
+EV_CURRENT	util/elf.h	/^#define EV_CURRENT /;"	d
+Elf32_Ehdr	util/elf.h	/^} Elf32_Ehdr;$/;"	t	typeref:struct:__anonac7a6b1f0108
+Elf32_Phdr	util/elf.h	/^} Elf32_Phdr;$/;"	t	typeref:struct:__anonac7a6b1f0308
+Elf32_Shdr	util/elf.h	/^} Elf32_Shdr;$/;"	t	typeref:struct:__anonac7a6b1f0208
+Elf32_Sym	util/elf.h	/^} Elf32_Sym;$/;"	t	typeref:struct:__anonac7a6b1f0408
+Elf64_Ehdr	util/elf.h	/^} Elf64_Ehdr;$/;"	t	typeref:struct:__anonac7a6b1f0508
+Elf64_Phdr	util/elf.h	/^} Elf64_Phdr;$/;"	t	typeref:struct:__anonac7a6b1f0708
+Elf64_Shdr	util/elf.h	/^} Elf64_Shdr;$/;"	t	typeref:struct:__anonac7a6b1f0608
+Elf64_Sym	util/elf.h	/^} Elf64_Sym;$/;"	t	typeref:struct:__anonac7a6b1f0808
+HOOKS_H	hooks.h	/^#define HOOKS_H$/;"	d
+HOOK_FLAGS	Makefile	/^    HOOK_FLAGS := -I$(ROOT_DIR)\/hooks.h$/;"	m
+INCLUDE	sw/Makefile	/^INCLUDE = -I.$/;"	m
+IS_ELF	util/elf.h	/^#define IS_ELF(/;"	d
+IS_ELF32	util/elf.h	/^#define IS_ELF32(/;"	d
+IS_ELF64	util/elf.h	/^#define IS_ELF64(/;"	d
+IS_ELFBE	util/elf.h	/^#define IS_ELFBE(/;"	d
+IS_ELFLE	util/elf.h	/^#define IS_ELFLE(/;"	d
+IS_ELF_EM_NONE	util/elf.h	/^#define IS_ELF_EM_NONE(/;"	d
+IS_ELF_EXEC	util/elf.h	/^#define IS_ELF_EXEC(/;"	d
+IS_ELF_RISCV	util/elf.h	/^#define IS_ELF_RISCV(/;"	d
+IS_ELF_VCURRENT	util/elf.h	/^#define IS_ELF_VCURRENT(/;"	d
+LOAD_ELF	util/elfloader.h	/^#define LOAD_ELF(/;"	d
+MEMORY_H	memory_simulator.h	/^#define MEMORY_H$/;"	d
+MMU_OBSERVE_FETCH	hooks.h	/^#define MMU_OBSERVE_FETCH(/;"	d
+MMU_OBSERVE_LOAD	hooks.h	/^#define MMU_OBSERVE_LOAD(/;"	d
+MultiplyDeBruijnBitPosition	util/ities.h	/^static std::array<const int, 32> MultiplyDeBruijnBitPosition = {{0,  1,  28, 2,  29, 14, 24, 3, /;"	v	namespace:util	typeref:typename:std::array<const int,32>
+OBJS	Makefile	/^OBJS := $(CPPLIST:.cc=.o)$/;"	m
+OC	sw/Makefile	/^OC = $(RISCV_PATH)\/bin\/riscv64-unknown-elf-objcopy$/;"	m
+OD	sw/Makefile	/^OD = $(RISCV_PATH)\/bin\/riscv64-unknown-elf-objdump$/;"	m
+PT_LOAD	util/elf.h	/^#define PT_LOAD /;"	d
+Prerequisites	sw/README.md	/^## Prerequisites$/;"	s	chapter:RISC-V Test Program
+Program Termination	sw/README.md	/^## Program Termination$/;"	s	chapter:RISC-V Test Program
+RISC-V Test Program	sw/README.md	/^# RISC-V Test Program$/;"	c
+ROOT_DIR	Makefile	/^ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))$/;"	m
+SCR_BASE	sw/main.c	/^#define SCR_BASE /;"	d	file:
+SHT_NOBITS	util/elf.h	/^#define SHT_NOBITS /;"	d
+SIZE	util/sparse_array.h	/^    const uint64_t SIZE = (page_size << upper_width);$/;"	m	class:util::sparse_array	typeref:typename:const uint64_t
+SPIKE_BUILD_DIR	Makefile	/^SPIKE_BUILD_DIR = $(SPIKE_DIR)\/build$/;"	m
+SPIKE_CLFAGS	Makefile	/^SPIKE_CLFAGS := -fPIC -O2$/;"	m
+SPIKE_CONFIGURE_STAMP	Makefile	/^SPIKE_CONFIGURE_STAMP = $(SPIKE_BUILD_DIR)\/.configure_stamp$/;"	m
+SPIKE_CXXFLAGS	Makefile	/^SPIKE_CXXFLAGS := -fPIC -O2 -std=c++17$/;"	m
+SPIKE_DIR	Makefile	/^SPIKE_DIR = $(patsubst %\/,%,$(SPIKE_SOURCE_DIR))$/;"	m
+SPIKE_INSTALL_DIR	Makefile	/^SPIKE_INSTALL_DIR = \/home\/korben\/tools\/riscv\/spike\/master$/;"	m
+START_PC	main.cc	/^#define START_PC /;"	d	file:
+S_SRC	sw/Makefile	/^S_SRC = .\/start.S$/;"	m
+VPATH	Makefile	/^VPATH := $(ROOT_DIR)$/;"	m
+X	util/ities.h	/^        X(T x_)$/;"	f	struct:signextend::X
+X	util/ities.h	/^    struct X {$/;"	s	function:signextend
+_ELF_H	util/elf.h	/^#define _ELF_H$/;"	d
+_SPARSE_ARRAY_H_	util/sparse_array.h	/^#define _SPARSE_ARRAY_H_$/;"	d
+_UTIL_ITIES_H_	util/ities.h	/^#define _UTIL_ITIES_H_$/;"	d
+__anonac7a6b1f0108	util/elf.h	/^typedef struct {$/;"	s
+__anonac7a6b1f0208	util/elf.h	/^typedef struct {$/;"	s
+__anonac7a6b1f0308	util/elf.h	/^{$/;"	s
+__anonac7a6b1f0408	util/elf.h	/^{$/;"	s
+__anonac7a6b1f0508	util/elf.h	/^typedef struct {$/;"	s
+__anonac7a6b1f0608	util/elf.h	/^typedef struct {$/;"	s
+__anonac7a6b1f0708	util/elf.h	/^typedef struct {$/;"	s
+__anonac7a6b1f0808	util/elf.h	/^typedef struct {$/;"	s
+__anonfba88e660102	util/ities.h	/^    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::tolowe/;"	f	function:util::str_tolower	file:
+__anonfba88e660202	util/ities.h	/^    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::touppe/;"	f	function:util::str_toupper	file:
+__anonfba88e660308	util/ities.h	/^	const struct  {$/;"	s	function:util::glob_to_regex
+__anonfba88e660402	util/ities.h	/^	auto is_regex_meta = [](char c)->bool {$/;"	f	function:util::glob_to_regex	typeref:typename:bool	file:
+_start	sw/start.S	/^_start:$/;"	l
+addr_to_mem	demo_core.cc	/^char* demo_core::addr_to_mem(reg_t paddr) {$/;"	f	class:demo_core	typeref:typename:char *
+all	sw/Makefile	/^all: main.lst main.elf$/;"	t
+arr	util/sparse_array.h	/^    std::array<page_type*, (1 << upper_width) + 1> arr;$/;"	m	class:util::sparse_array	typeref:typename:std::array<page_type *,(1<<upper_width)+1>
+base_name	util/ities.h	/^template <class T> inline T base_name(T const& path, T const& delims = "\/\\\\") {$/;"	f	namespace:util	typeref:typename:T
+bit_count	util/ities.h	/^constexpr inline size_t bit_count(uint32_t u) { return __builtin_popcount(u); }$/;"	f	namespace:util	typeref:typename:size_t
+bit_count	util/ities.h	/^constexpr inline size_t bit_count(uint64_t u) { return __builtin_popcountl(u); }$/;"	f	namespace:util	typeref:typename:size_t
+bit_count	util/ities.h	/^constexpr size_t bit_count(uint32_t u) { return ((uCount(u) + (uCount(u) >> 3)) & 030707070707) /;"	f	namespace:util	typeref:typename:size_t
+bit_count	util/ities.h	/^constexpr size_t bit_count(uint32_t u) {$/;"	f	namespace:util	typeref:typename:size_t
+bit_sub	util/ities.h	/^inline constexpr typename std::enable_if<std::is_signed<T>::value, T>::type bit_sub(T v) {$/;"	f	typeref:typename:std::enable_if<std::is_signed<T>::value,T>::type
+bit_sub	util/ities.h	/^inline constexpr typename std::enable_if<std::is_unsigned<T>::value, T>::type bit_sub(T v) {$/;"	f	typeref:typename:std::enable_if<std::is_unsigned<T>::value,T>::type
+buffer	util/ities.h	/^    struct stat buffer {};$/;"	s	function:util::file_exists
+bus	demo_core.h	/^        std::unique_ptr<bus_t> bus;$/;"	m	class:demo_core	typeref:typename:std::unique_ptr<bus_t>
+cfg	demo_core.h	/^        const cfg_t* const cfg;$/;"	m	class:demo_core	typeref:typename:const cfg_t * const
+check_spike_dir	Makefile	/^check_spike_dir:$/;"	t
+clean	Makefile	/^clean:$/;"	t
+clean	sw/Makefile	/^clean:$/;"	t
+clean_spike	Makefile	/^clean_spike: | check_spike_dir$/;"	t
+compile_only	Makefile	/^compile_only: $(OBJS)$/;"	t
+configure_log	demo_core.cc	/^void demo_core::configure_log(bool enable_log, bool enable_commitlog) {$/;"	f	class:demo_core	typeref:typename:void
+cpu_get_current_hartid	sw/main.c	/^static inline unsigned cpu_get_current_hartid() {$/;"	f	typeref:typename:unsigned	file:
+debug	demo_core.h	/^        bool debug{false};$/;"	m	class:demo_core	typeref:typename:bool
+debug_module	demo_core.h	/^    debug_module_t debug_module;$/;"	m	class:demo_core	typeref:typename:debug_module_t
+demo	Makefile	/^demo: $(OBJS)$/;"	t
+demo	Makefile	/^demo:$/;"	t
+demo_core	demo_core.cc	/^demo_core::demo_core(const cfg_t* cfg, const debug_module_config_t& dm_config):$/;"	f	class:demo_core
+demo_core	demo_core.h	/^class demo_core : public simif_t {$/;"	c
+dir_name	util/ities.h	/^template <class T> inline T dir_name(T const& path, T const& delims = "\/\\\\") {$/;"	f	namespace:util	typeref:typename:T
+double_star	util/ities.h	/^		const char *double_star = ".*";$/;"	m	struct:util::glob_to_regex::__anonfba88e660308	typeref:typename:const char *
+e_ehsize	util/elf.h	/^  uint16_t e_ehsize;$/;"	m	struct:__anonac7a6b1f0108	typeref:typename:uint16_t
+e_ehsize	util/elf.h	/^  uint16_t e_ehsize;$/;"	m	struct:__anonac7a6b1f0508	typeref:typename:uint16_t
+e_entry	util/elf.h	/^  uint32_t e_entry;$/;"	m	struct:__anonac7a6b1f0108	typeref:typename:uint32_t
+e_entry	util/elf.h	/^  uint64_t e_entry;$/;"	m	struct:__anonac7a6b1f0508	typeref:typename:uint64_t
+e_flags	util/elf.h	/^  uint32_t e_flags;$/;"	m	struct:__anonac7a6b1f0108	typeref:typename:uint32_t
+e_flags	util/elf.h	/^  uint32_t e_flags;$/;"	m	struct:__anonac7a6b1f0508	typeref:typename:uint32_t
+e_ident	util/elf.h	/^  uint8_t  e_ident[16];$/;"	m	struct:__anonac7a6b1f0108	typeref:typename:uint8_t[16]
+e_ident	util/elf.h	/^  uint8_t  e_ident[16];$/;"	m	struct:__anonac7a6b1f0508	typeref:typename:uint8_t[16]
+e_machine	util/elf.h	/^  uint16_t e_machine;$/;"	m	struct:__anonac7a6b1f0108	typeref:typename:uint16_t
+e_machine	util/elf.h	/^  uint16_t e_machine;$/;"	m	struct:__anonac7a6b1f0508	typeref:typename:uint16_t
+e_phentsize	util/elf.h	/^  uint16_t e_phentsize;$/;"	m	struct:__anonac7a6b1f0108	typeref:typename:uint16_t
+e_phentsize	util/elf.h	/^  uint16_t e_phentsize;$/;"	m	struct:__anonac7a6b1f0508	typeref:typename:uint16_t
+e_phnum	util/elf.h	/^  uint16_t e_phnum;$/;"	m	struct:__anonac7a6b1f0108	typeref:typename:uint16_t
+e_phnum	util/elf.h	/^  uint16_t e_phnum;$/;"	m	struct:__anonac7a6b1f0508	typeref:typename:uint16_t
+e_phoff	util/elf.h	/^  uint32_t e_phoff;$/;"	m	struct:__anonac7a6b1f0108	typeref:typename:uint32_t
+e_phoff	util/elf.h	/^  uint64_t e_phoff;$/;"	m	struct:__anonac7a6b1f0508	typeref:typename:uint64_t
+e_shentsize	util/elf.h	/^  uint16_t e_shentsize;$/;"	m	struct:__anonac7a6b1f0108	typeref:typename:uint16_t
+e_shentsize	util/elf.h	/^  uint16_t e_shentsize;$/;"	m	struct:__anonac7a6b1f0508	typeref:typename:uint16_t
+e_shnum	util/elf.h	/^  uint16_t e_shnum;$/;"	m	struct:__anonac7a6b1f0108	typeref:typename:uint16_t
+e_shnum	util/elf.h	/^  uint16_t e_shnum;$/;"	m	struct:__anonac7a6b1f0508	typeref:typename:uint16_t
+e_shoff	util/elf.h	/^  uint32_t e_shoff;$/;"	m	struct:__anonac7a6b1f0108	typeref:typename:uint32_t
+e_shoff	util/elf.h	/^  uint64_t e_shoff;$/;"	m	struct:__anonac7a6b1f0508	typeref:typename:uint64_t
+e_shstrndx	util/elf.h	/^  uint16_t e_shstrndx;$/;"	m	struct:__anonac7a6b1f0108	typeref:typename:uint16_t
+e_shstrndx	util/elf.h	/^  uint16_t e_shstrndx;$/;"	m	struct:__anonac7a6b1f0508	typeref:typename:uint16_t
+e_type	util/elf.h	/^  uint16_t e_type;$/;"	m	struct:__anonac7a6b1f0108	typeref:typename:uint16_t
+e_type	util/elf.h	/^  uint16_t e_type;$/;"	m	struct:__anonac7a6b1f0508	typeref:typename:uint16_t
+e_version	util/elf.h	/^  uint32_t e_version;$/;"	m	struct:__anonac7a6b1f0108	typeref:typename:uint32_t
+e_version	util/elf.h	/^  uint32_t e_version;$/;"	m	struct:__anonac7a6b1f0508	typeref:typename:uint32_t
+enable_debug	demo_core.cc	/^void demo_core::enable_debug(bool enable) {$/;"	f	class:demo_core	typeref:typename:void
+ends_with	util/ities.h	/^inline bool ends_with(std::string const & value, std::string const & ending){$/;"	f	namespace:util	typeref:typename:bool
+file_exists	util/ities.h	/^inline bool file_exists(const std::string& name) {$/;"	f	namespace:util	typeref:typename:bool
+find_first	util/ities.h	/^template <size_t N> constexpr size_t find_first(std::bitset<N>& bits) {$/;"	f	namespace:util	typeref:typename:size_t
+get_cfg	demo_core.cc	/^const cfg_t& demo_core::get_cfg() const { $/;"	f	class:demo_core	typeref:typename:const cfg_t &
+get_core	demo_core.cc	/^processor_t* demo_core::get_core(size_t i) { $/;"	f	class:demo_core	typeref:typename:processor_t *
+get_harts	demo_core.cc	/^const std::map<size_t, processor_t*>& demo_core::get_harts() const { $/;"	f	class:demo_core	typeref:typename:const std::map<size_t,processor_t * > &
+get_log_file	demo_core.cc	/^FILE* demo_core::get_log_file() { $/;"	f	class:demo_core	typeref:typename:FILE *
+get_symbol	demo_core.cc	/^const char* demo_core::get_symbol(uint64_t paddr) {$/;"	f	class:demo_core	typeref:typename:const char *
+glob_to_regex	util/ities.h	/^std::string  glob_to_regex(std::string val) {$/;"	f	namespace:util	typeref:typename:std::string
+harts	demo_core.h	/^        std::map<size_t, processor_t*> harts;$/;"	m	class:demo_core	typeref:typename:std::map<size_t,processor_t * >
+hasOddParity	util/ities.h	/^constexpr bool hasOddParity(uint32_t u) { return bit_count(u) % 2; }$/;"	f	namespace:util	typeref:typename:bool
+iequals	util/ities.h	/^inline bool iequals(const std::string& a, const std::string& b) {$/;"	f	namespace:util	typeref:typename:bool
+ilog2	util/ities.h	/^inline unsigned ilog2(uint32_t val) {$/;"	f	namespace:util	typeref:typename:unsigned
+ilog2plus	util/ities.h	/^inline unsigned ilog2plus(uint32_t val) {$/;"	f	namespace:util	typeref:typename:unsigned
+is_allocated	util/sparse_array.h	/^    bool is_allocated(uint64_t addr) {$/;"	f	class:util::sparse_array	typeref:typename:bool
+join	util/ities.h	/^std::string join(Range const& elements, char const* const delimiter) {$/;"	f	namespace:util	typeref:typename:std::string
+leftmost_one	util/ities.h	/^template <typename T> T leftmost_one(T n) {$/;"	f	namespace:util	typeref:typename:T
+load	memory_simulator.cc	/^bool memory_sim_bridge::load(reg_t addr, size_t len, uint8_t* bytes) {$/;"	f	class:memory_sim_bridge	typeref:typename:bool
+load	memory_simulator.cc	/^bool memory_simulator_wrapper::load(reg_t addr, size_t len, uint8_t* bytes) {$/;"	f	class:memory_simulator_wrapper	typeref:typename:bool
+load_elf	util/elfloader.h	/^std::map<std::string, uint64_t> load_elf(const char* fn, util::sparse_array<T, upper_width, lowe/;"	f	typeref:typename:std::map<std::string,uint64_t>
+load_elf_file	memory_simulator.cc	/^std::map<std::string, uint64_t> memory_simulator::load_elf_file(const std::string& filename, uin/;"	f	class:memory_simulator	typeref:typename:std::map<std::string,uint64_t>
+load_elf_file	memory_simulator.cc	/^void memory_sim_bridge::load_elf_file(const std::string& filename, uint64_t* entry_point) {$/;"	f	class:memory_sim_bridge	typeref:typename:void
+load_hex_file	memory_simulator.cc	/^void memory_simulator::load_hex_file(const std::string& filename) {$/;"	f	class:memory_simulator	typeref:typename:void
+log	demo_core.h	/^        bool log{false};$/;"	m	class:demo_core	typeref:typename:bool
+log_file	demo_core.h	/^        log_file_t log_file{"out.txt"}; \/\/ Default log file$/;"	m	class:demo_core	typeref:typename:log_file_t
+ltrim	util/ities.h	/^inline std::string& ltrim(std::string& str, const std::string& chars = "\\t\\n\\v\\f\\r ") {$/;"	f	namespace:util	typeref:typename:std::string &
+main	main.cc	/^int main(int argc, char* argv[]) {$/;"	f	typeref:typename:int
+main	sw/main.c	/^int main () {$/;"	f	typeref:typename:int
+make_unique	util/ities.h	/^template <typename T, typename... Args> std::unique_ptr<T> make_unique(Args&&... args) {$/;"	f	namespace:util	typeref:typename:std::unique_ptr<T>
+mem_size	memory_simulator.h	/^    uint64_t mem_size;$/;"	m	class:memory_simulator	typeref:typename:uint64_t
+memory_sim_bridge	memory_simulator.cc	/^memory_sim_bridge::memory_sim_bridge(memory_simulator* sim, uint64_t start_pc) : sim(sim) {$/;"	f	class:memory_sim_bridge
+memory_sim_bridge	memory_simulator.h	/^class memory_sim_bridge : public abstract_sim_if_t {$/;"	c
+memory_simulator	memory_simulator.cc	/^memory_simulator::memory_simulator(uint64_t size, uint64_t start_pc): mem_size(size), start_pc(s/;"	f	class:memory_simulator
+memory_simulator	memory_simulator.h	/^class memory_simulator {$/;"	c
+memory_simulator_wrapper	memory_simulator.cc	/^memory_simulator_wrapper::memory_simulator_wrapper(uint64_t size, uint64_t start_pc): memory_sim/;"	f	class:memory_simulator_wrapper
+memory_simulator_wrapper	memory_simulator.h	/^class memory_simulator_wrapper : public memory_simulator, public abstract_sim_if_t {$/;"	c
+mmio_fetch	demo_core.cc	/^bool demo_core::mmio_fetch(reg_t paddr, size_t len, uint8_t* bytes) {$/;"	f	class:demo_core	typeref:typename:bool
+mmio_load	demo_core.cc	/^bool demo_core::mmio_load(reg_t paddr, size_t len, uint8_t* bytes) { $/;"	f	class:demo_core	typeref:typename:bool
+mmio_store	demo_core.cc	/^bool demo_core::mmio_store(reg_t paddr, size_t len, const uint8_t* bytes) { $/;"	f	class:demo_core	typeref:typename:bool
+operator ()	util/sparse_array.h	/^    page_type& operator()(uint32_t page_nr) {$/;"	f	class:util::sparse_array	typeref:typename:page_type &
+operator []	util/sparse_array.h	/^    T& operator[](uint64_t addr) {$/;"	f	class:util::sparse_array	typeref:typename:T &
+p_align	util/elf.h	/^  uint32_t p_align;$/;"	m	struct:__anonac7a6b1f0308	typeref:typename:uint32_t
+p_align	util/elf.h	/^  uint64_t p_align;$/;"	m	struct:__anonac7a6b1f0708	typeref:typename:uint64_t
+p_filesz	util/elf.h	/^  uint32_t p_filesz;$/;"	m	struct:__anonac7a6b1f0308	typeref:typename:uint32_t
+p_filesz	util/elf.h	/^  uint64_t p_filesz;$/;"	m	struct:__anonac7a6b1f0708	typeref:typename:uint64_t
+p_finisher	sw/main.c	/^unsigned volatile * const p_finisher = (unsigned *) (SCR_BASE + 8);$/;"	v	typeref:typename:unsigned volatile * const
+p_flags	util/elf.h	/^  uint32_t p_flags;$/;"	m	struct:__anonac7a6b1f0308	typeref:typename:uint32_t
+p_flags	util/elf.h	/^  uint32_t p_flags;$/;"	m	struct:__anonac7a6b1f0708	typeref:typename:uint32_t
+p_memsz	util/elf.h	/^  uint32_t p_memsz;$/;"	m	struct:__anonac7a6b1f0308	typeref:typename:uint32_t
+p_memsz	util/elf.h	/^  uint64_t p_memsz;$/;"	m	struct:__anonac7a6b1f0708	typeref:typename:uint64_t
+p_offset	util/elf.h	/^  uint32_t p_offset;$/;"	m	struct:__anonac7a6b1f0308	typeref:typename:uint32_t
+p_offset	util/elf.h	/^  uint64_t p_offset;$/;"	m	struct:__anonac7a6b1f0708	typeref:typename:uint64_t
+p_paddr	util/elf.h	/^  uint32_t p_paddr;$/;"	m	struct:__anonac7a6b1f0308	typeref:typename:uint32_t
+p_paddr	util/elf.h	/^  uint64_t p_paddr;$/;"	m	struct:__anonac7a6b1f0708	typeref:typename:uint64_t
+p_type	util/elf.h	/^  uint32_t p_type;$/;"	m	struct:__anonac7a6b1f0308	typeref:typename:uint32_t
+p_type	util/elf.h	/^  uint32_t p_type;$/;"	m	struct:__anonac7a6b1f0708	typeref:typename:uint32_t
+p_vaddr	util/elf.h	/^  uint32_t p_vaddr;$/;"	m	struct:__anonac7a6b1f0308	typeref:typename:uint32_t
+p_vaddr	util/elf.h	/^  uint64_t p_vaddr;$/;"	m	struct:__anonac7a6b1f0708	typeref:typename:uint64_t
+padded	util/ities.h	/^inline std::string padded(std::string str, size_t width, bool show_ellipsis = true) {$/;"	f	namespace:util	typeref:typename:std::string
+page_addr_mask	util/sparse_array.h	/^    const uint64_t page_addr_mask = (1 << lower_width) - 1;$/;"	m	class:util::sparse_array	typeref:typename:const uint64_t
+page_addr_width	util/sparse_array.h	/^    const uint64_t page_addr_width = lower_width;$/;"	m	class:util::sparse_array	typeref:typename:const uint64_t
+page_count	util/sparse_array.h	/^    const unsigned page_count = 1 << upper_width ; \/\/ 1 + SIZE \/ page_size;$/;"	m	class:util::sparse_array	typeref:typename:const unsigned
+page_size	util/sparse_array.h	/^    const uint64_t page_size = (1 << lower_width);$/;"	m	class:util::sparse_array	typeref:typename:const uint64_t
+page_type	util/sparse_array.h	/^    using page_type = std::array<T, 1 << lower_width>;$/;"	t	class:util::sparse_array	typeref:typename:std::array<T,1<<lower_width>
+proc_reset	demo_core.cc	/^void demo_core::proc_reset(unsigned id) { $/;"	f	class:demo_core	typeref:typename:void
+procs	demo_core.h	/^        std::vector<processor_t*> procs;$/;"	m	class:demo_core	typeref:typename:std::vector<processor_t * >
+question_mark	util/ities.h	/^        const char *question_mark="[^\/]";$/;"	m	struct:util::glob_to_regex::__anonfba88e660308	typeref:typename:const char *
+read	memory_simulator.cc	/^void memory_simulator::read(uint64_t addr, uint8_t* data, size_t len) {$/;"	f	class:memory_simulator	typeref:typename:void
+read	util/sparse_array.h	/^    void read(uint64_t addr, uint8_t *data_ptr, size_t len) {$/;"	f	class:util::sparse_array	typeref:typename:void
+reconfigure_spike	Makefile	/^reconfigure_spike: | check_spike_dir$/;"	t
+remote_bitbang	demo_core.h	/^        remote_bitbang_t* remote_bitbang{nullptr};$/;"	m	class:demo_core	typeref:typename:remote_bitbang_t *
+remove_ext	util/ities.h	/^template <class T> inline T remove_ext(T const& filename) {$/;"	f	namespace:util	typeref:typename:T
+reservable	demo_core.cc	/^bool demo_core::reservable(reg_t paddr) { $/;"	f	class:demo_core	typeref:typename:bool
+reset	demo_core.cc	/^void demo_core::reset() {$/;"	f	class:demo_core	typeref:typename:void
+rtrim	util/ities.h	/^inline std::string& rtrim(std::string& str, const std::string& chars = "\\t\\n\\v\\f\\r ") {$/;"	f	namespace:util	typeref:typename:std::string &
+set_remote_bitbang	demo_core.h	/^    void set_remote_bitbang(remote_bitbang_t* remote_bitbang) {$/;"	f	class:demo_core	typeref:typename:void
+set_rom	demo_core.cc	/^void demo_core::set_rom()$/;"	f	class:demo_core	typeref:typename:void
+set_rom_contents	memory_simulator.cc	/^void memory_simulator::set_rom_contents() {$/;"	f	class:memory_simulator	typeref:typename:void
+set_start_pc	memory_simulator.h	/^    void set_start_pc(uint64_t start_pc) { this->start_pc = start_pc; }$/;"	f	class:memory_simulator	typeref:typename:void
+sh_addr	util/elf.h	/^  uint32_t sh_addr;$/;"	m	struct:__anonac7a6b1f0208	typeref:typename:uint32_t
+sh_addr	util/elf.h	/^  uint64_t sh_addr;$/;"	m	struct:__anonac7a6b1f0608	typeref:typename:uint64_t
+sh_addralign	util/elf.h	/^  uint32_t sh_addralign;$/;"	m	struct:__anonac7a6b1f0208	typeref:typename:uint32_t
+sh_addralign	util/elf.h	/^  uint64_t sh_addralign;$/;"	m	struct:__anonac7a6b1f0608	typeref:typename:uint64_t
+sh_entsize	util/elf.h	/^  uint32_t sh_entsize;$/;"	m	struct:__anonac7a6b1f0208	typeref:typename:uint32_t
+sh_entsize	util/elf.h	/^  uint64_t sh_entsize;$/;"	m	struct:__anonac7a6b1f0608	typeref:typename:uint64_t
+sh_flags	util/elf.h	/^  uint32_t sh_flags;$/;"	m	struct:__anonac7a6b1f0208	typeref:typename:uint32_t
+sh_flags	util/elf.h	/^  uint64_t sh_flags;$/;"	m	struct:__anonac7a6b1f0608	typeref:typename:uint64_t
+sh_info	util/elf.h	/^  uint32_t sh_info;$/;"	m	struct:__anonac7a6b1f0208	typeref:typename:uint32_t
+sh_info	util/elf.h	/^  uint32_t sh_info;$/;"	m	struct:__anonac7a6b1f0608	typeref:typename:uint32_t
+sh_link	util/elf.h	/^  uint32_t sh_link;$/;"	m	struct:__anonac7a6b1f0208	typeref:typename:uint32_t
+sh_link	util/elf.h	/^  uint32_t sh_link;$/;"	m	struct:__anonac7a6b1f0608	typeref:typename:uint32_t
+sh_name	util/elf.h	/^  uint32_t sh_name;$/;"	m	struct:__anonac7a6b1f0208	typeref:typename:uint32_t
+sh_name	util/elf.h	/^  uint32_t sh_name;$/;"	m	struct:__anonac7a6b1f0608	typeref:typename:uint32_t
+sh_offset	util/elf.h	/^  uint32_t sh_offset;$/;"	m	struct:__anonac7a6b1f0208	typeref:typename:uint32_t
+sh_offset	util/elf.h	/^  uint64_t sh_offset;$/;"	m	struct:__anonac7a6b1f0608	typeref:typename:uint64_t
+sh_size	util/elf.h	/^  uint32_t sh_size;$/;"	m	struct:__anonac7a6b1f0208	typeref:typename:uint32_t
+sh_size	util/elf.h	/^  uint64_t sh_size;$/;"	m	struct:__anonac7a6b1f0608	typeref:typename:uint64_t
+sh_type	util/elf.h	/^  uint32_t sh_type;$/;"	m	struct:__anonac7a6b1f0208	typeref:typename:uint32_t
+sh_type	util/elf.h	/^  uint32_t sh_type;$/;"	m	struct:__anonac7a6b1f0608	typeref:typename:uint32_t
+signed_bit_sub	util/ities.h	/^inline constexpr typename std::make_signed<T>::type signed_bit_sub(T v) {$/;"	f	typeref:typename:std::make_signed<T>::type
+signextend	util/ities.h	/^template <typename T, unsigned B> inline T signextend(const T x) {$/;"	f	typeref:typename:T
+sim	memory_simulator.h	/^    memory_simulator* sim;$/;"	m	class:memory_sim_bridge	typeref:typename:memory_simulator *
+size	memory_simulator.cc	/^uint64_t memory_simulator::size() const {$/;"	f	class:memory_simulator	typeref:typename:uint64_t
+size	util/sparse_array.h	/^    uint64_t size() { return SIZE; }$/;"	f	class:util::sparse_array	typeref:typename:uint64_t
+sparse_arr	memory_simulator.h	/^    util::sparse_array<uint8_t, 18, 30> sparse_arr;$/;"	m	class:memory_simulator	typeref:typename:util::sparse_array<uint8_t,18,30>
+sparse_array	util/sparse_array.h	/^    sparse_array() { arr.fill(nullptr); }$/;"	f	class:util::sparse_array
+sparse_array	util/sparse_array.h	/^template <typename T, int upper_width, int lower_width> class sparse_array {$/;"	c	namespace:util
+spike_build	Makefile	/^spike_build: $(SPIKE_CONFIGURE_STAMP) | check_spike_dir$/;"	t
+split	util/ities.h	/^inline std::vector<std::string> split(const std::string& s, char separator) {$/;"	f	namespace:util	typeref:typename:std::vector<std::string>
+split	util/ities.h	/^void split(char delimiter, Output& output, Input const& input) {$/;"	f	namespace:util	typeref:typename:void
+st_info	util/elf.h	/^  uint8_t  st_info;$/;"	m	struct:__anonac7a6b1f0408	typeref:typename:uint8_t
+st_info	util/elf.h	/^  uint8_t  st_info;$/;"	m	struct:__anonac7a6b1f0808	typeref:typename:uint8_t
+st_name	util/elf.h	/^  uint32_t st_name;$/;"	m	struct:__anonac7a6b1f0408	typeref:typename:uint32_t
+st_name	util/elf.h	/^  uint32_t st_name;$/;"	m	struct:__anonac7a6b1f0808	typeref:typename:uint32_t
+st_other	util/elf.h	/^  uint8_t  st_other;$/;"	m	struct:__anonac7a6b1f0408	typeref:typename:uint8_t
+st_other	util/elf.h	/^  uint8_t  st_other;$/;"	m	struct:__anonac7a6b1f0808	typeref:typename:uint8_t
+st_shndx	util/elf.h	/^  uint16_t st_shndx;$/;"	m	struct:__anonac7a6b1f0408	typeref:typename:uint16_t
+st_shndx	util/elf.h	/^  uint16_t st_shndx;$/;"	m	struct:__anonac7a6b1f0808	typeref:typename:uint16_t
+st_size	util/elf.h	/^  uint32_t st_size;$/;"	m	struct:__anonac7a6b1f0408	typeref:typename:uint32_t
+st_size	util/elf.h	/^  uint64_t st_size;$/;"	m	struct:__anonac7a6b1f0808	typeref:typename:uint64_t
+st_value	util/elf.h	/^  uint32_t st_value;$/;"	m	struct:__anonac7a6b1f0408	typeref:typename:uint32_t
+st_value	util/elf.h	/^  uint64_t st_value;$/;"	m	struct:__anonac7a6b1f0808	typeref:typename:uint64_t
+star	util/ities.h	/^        const char *star= "[^\/]*";$/;"	m	struct:util::glob_to_regex::__anonfba88e660308	typeref:typename:const char *
+start_pc	memory_simulator.h	/^    uint64_t start_pc;$/;"	m	class:memory_simulator	typeref:typename:uint64_t
+step	demo_core.cc	/^void demo_core::step(size_t n) {$/;"	f	class:demo_core	typeref:typename:void
+store	memory_simulator.cc	/^bool memory_sim_bridge::store(reg_t addr, size_t len, const uint8_t* bytes) {$/;"	f	class:memory_sim_bridge	typeref:typename:bool
+store	memory_simulator.cc	/^bool memory_simulator_wrapper::store(reg_t addr, size_t len, const uint8_t* bytes) {$/;"	f	class:memory_simulator_wrapper	typeref:typename:bool
+str_tolower	util/ities.h	/^inline std::string str_tolower(std::string str) {$/;"	f	namespace:util	typeref:typename:std::string
+str_toupper	util/ities.h	/^inline std::string str_toupper(std::string str) {$/;"	f	namespace:util	typeref:typename:std::string
+symbols	demo_core.h	/^        std::map<std::string, uint64_t> symbols;$/;"	m	class:demo_core	typeref:typename:std::map<std::string,uint64_t>
+task_load_add	sw/main.c	/^__attribute__((noinline)) void task_load_add () {$/;"	f	typeref:typename:void
+task_wfi	sw/main.c	/^__attribute__((noinline)) void task_wfi () {$/;"	f	typeref:typename:void
+trim	util/ities.h	/^inline std::string& trim(std::string& str, const std::string& chars = "\\t\\n\\v\\f\\r ") {$/;"	f	namespace:util	typeref:typename:std::string &
+uCount	util/ities.h	/^constexpr size_t uCount(uint32_t u) { return u - ((u >> 1) & 033333333333) - ((u >> 2) & 0111111/;"	f	namespace:util	typeref:typename:size_t
+util	util/ities.h	/^namespace util {$/;"	n
+util	util/sparse_array.h	/^namespace util {$/;"	n
+write	memory_simulator.cc	/^void memory_simulator::write(uint64_t addr, const uint8_t* data, size_t len) {$/;"	f	class:memory_simulator	typeref:typename:void
+write	util/sparse_array.h	/^    void write(uint64_t addr, const uint8_t *data_ptr, size_t data_len, uint8_t *be_ptr = nullpt/;"	f	class:util::sparse_array	typeref:typename:void
+x	util/ities.h	/^        T x : B;$/;"	m	struct:signextend::X	typeref:typename:T
+~demo_core	demo_core.cc	/^demo_core::~demo_core() {$/;"	f	class:demo_core
+~memory_simulator	memory_simulator.cc	/^memory_simulator::~memory_simulator() {}$/;"	f	class:memory_simulator
+~memory_simulator_wrapper	memory_simulator.cc	/^memory_simulator_wrapper::~memory_simulator_wrapper() {$/;"	f	class:memory_simulator_wrapper
+~sparse_array	util/sparse_array.h	/^    ~sparse_array() {$/;"	f	class:util::sparse_array

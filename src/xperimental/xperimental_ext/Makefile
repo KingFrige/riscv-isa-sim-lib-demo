@@ -5,9 +5,9 @@ endif
 
 CXXFLAGS = -std=c++2a -fPIC -O2 -Wall -MMD -MP -D_GNU_SOURCE
 
-ifeq ($(SPIKE_DIR),)
-$(error SPIKE_DIR is not set)
-endif
+ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
+SPIKE_SOURCE_DIR ?= $(ROOT_DIR)/../../../riscv-isa-sim
+SPIKE_DIR = $(patsubst %/,%,$(SPIKE_SOURCE_DIR))/install
 
 # cehck if Spike install area is in PATH
 # check if SPIKE_DIR/lib is in LD_LIBRARY_PATH
