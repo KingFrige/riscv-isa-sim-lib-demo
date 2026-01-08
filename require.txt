@@ -1,0 +1,7 @@
+# require
+
+1. 理解仓库代码
+1. 在src/xperimental/README.md中可以看到，这个代码需要执行spike同时load外部lib，现在需要实现新的top，直接将lib与spike编译在一起，形成一个elf
+1. 勿直接修改riscv-isa-sim/仓库，需要修改可以直接在外部增加新的层级，改变编译系统
+1. 在上述修改的基础上增加新的指令，参考xperiv / xperia
+1. 测试新的实现

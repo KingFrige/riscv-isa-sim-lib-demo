@@ -28,7 +28,7 @@ Assumin that you have built Spike and installed it into `../../riscv-isa-sim/ins
 running with spike for 42 instructions:
 
 ```
-LD_LIBRARY_PATH=../../riscv-isa-sim/install/lib ../../riscv-isa-sim/install/bin/spike -m0x8000:0x2000,0x28000:0x1000,0x30000:0x1000,0x38000:0x1000,0x6b000:0x1000,0x80000:0x1000,0x88000:0x1000,0x140000:0x10000,0x1700000:0x10000,0x20d0000:0x2000000,0x20000000:0x20000000,0x40000000:0x20000000,0x7f000000:0x1000000000 --isa rv64imafdcv_zifencei_zicsr_zvl1024b_xperia_xperiv --extlib=./xperimental_ext/libxperi.so --instructions=42 -l --log=log.txt ./xperimental_sw/main.elf
+LD_LIBRARY_PATH=../../riscv-isa-sim/install/lib ../../riscv-isa-sim/install/bin/spike -m0x8000:0x2000,0x28000:0x1000,0x30000:0x1000,0x38000:0x1000,0x6b000:0x1000,0x80000:0x1000,0x88000:0x1000,0x140000:0x10000,0x1700000:0x10000,0x20d0000:0x2000000,0x20000000:0x20000000,0x40000000:0x20000000,0x7f000000:0x1000000000 --isa rv64imafdcv_zifencei_zicsr_zvl1024b_xperia_xperiv --extlib=./xperimental_ext/libxperi.so --instructions=42 -l --log=log.txt --log-commits ./xperimental_sw/main.elf
 ```
 
 The execution log is in `log.txt` file.

@@ -4,4 +4,6 @@ SECTIONS {
   .data : { *(.data) }
   .bss : { *(.bss) }
   .srodata : { *(.srodata) }
+  . = ALIGN(0x1000);
+  .tohost : { *(.tohost) }
 }

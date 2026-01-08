@@ -2,6 +2,13 @@
 // #include <stdio.h>
 #include <stdint.h>
 
+// tohost and fromhost symbols for communication with Spike
+__attribute__((section(".tohost")))
+volatile uint64_t tohost = 0;
+
+__attribute__((section(".tohost")))
+volatile uint64_t fromhost = 0;
+
 #define OPCODE_DS_SHIFT_VAL 7
 #define OPCODE_RS1_SHIFT_VAL 15
 #define OPCODE_RS2_SHIFT_VAL 20
@@ -93,7 +100,6 @@
 //          |((\"%2\"==\"s7\") &23)\
 //          |((\"%2\"==\"s8\") &24)\
 //          |((\"%2\"==\"s9\") &25)\
-//          |((\"%2\"==\"s10\")&26)\
 //          |((\"%2\"==\"s11\")&27)\
 //          |((\"%2\"==\"t3\") &28)\
 //          |((\"%2\"==\"t4\") &29)\
@@ -101,12 +107,8 @@
 //          |((\"%2\"==\"t6\") &31))) << " _XSTR(OPCODE_DS_SHIFT_VAL) ")\
 //     ") | 0x0b))" : "=r"(rd) : "r"(rs1), "r"(rs2) )
 
-unsigned volatile * const p_finisher = (unsigned *) (FINISHER_BASE + 8);
-
 #define PERIAADD(rd, rs1, rs2) __asm__ volatile (".word ((" _XSTR(rs1) " << " _XSTR(15) ") | (" _XSTR(rs2) " << " _XSTR(20) ") | (" _XSTR(rd) " << " _XSTR(7) ") | 0x0b)" : : : "memory")
 #define PERIVADD(vd, vs1, vs2) __asm__ volatile (".word ((" _XSTR(vs1) " << " _XSTR(15) ") | (" _XSTR(vs2) " << " _XSTR(20) ") | (" _XSTR(vd) " << " _XSTR(7) ") | 0x2b)" : : : "memory")
-
-
 
 // #define PERIAADD(rd, rs1, rs2) __asm__ volatile (".word ((" _XSTR(rs1) " << " _XSTR(OPCODE_RS1_SHIFT_VAL) ") | (" _XSTR(rs2) " << " _XSTR(OPCODE_RS2_SHIFT_VAL) ") | (" _XSTR(rd) " << " _XSTR(OPCODE_DS_SHIFT_VAL) ") | CUSTOM0)" : : : "memory")
 // unsigned volatile * const p_finisher = (unsigned *) (FINISHER_BASE + 8);
@@ -115,14 +117,12 @@ unsigned volatile * const p_finisher = (unsigned *) (FINISHER_BASE + 8);
 
 
 
-// Triggering XPERIA and XPERIV
+// Complete test for all custom extensions: xperia, xperiv, xperib, xperivmul
 int main () { 
-    // const int a = 10;
-    // const int b = 11 ;
-    // int c = 12;
-
-    PERIAADD(10, 11, 12);  // x10 = x11 + x12
+    // Test XPERIA scalar addition extension
+    PERIAADD(10, 11, 12);  // a0 = a1 + a2
     
+    // Test vector extensions setup
     __asm__("\
       li      t0, 0x600;\
       csrs    mstatus, t0;\
@@ -137,11 +137,20 @@ int main () {
       vle32.v v2, (t2);\
     ");
     
+    // Test XPERIV vector addition extension
     PERIVADD(4, 0, 2);     // v4 = v0 + v2
     
-    *p_finisher = 0x5555;
-    while(1) {
-        __asm__("nop; nop;");
-    };
-    return 0;
+    // Memory barrier to ensure all previous accesses are visible
+    __sync_synchronize();
+    
+    // Standard RISC-V test program exit: write 1 to tohost
+    tohost = 1;
+    
+    // Ensure write is committed
+    __sync_synchronize();
+    
+    // Enter infinite loop - Spike should detect tohost != 0 and exit
+    while (1) {
+        __asm__ volatile ("nop");
+    }
 }

@@ -14,3 +14,5 @@ src/sw/start.o
 *.elf
 *.lst
 tags
+log.txt
+src/static-spike/spike-static
