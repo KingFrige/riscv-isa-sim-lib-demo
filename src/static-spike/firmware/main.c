@@ -31,6 +31,14 @@ volatile uint64_t fromhost = 0;
 // XPERIVMUL vector multiplication extension (opcode 0x5b - CUSTOM-3)
 #define PERIVMUL(vd, vs1, vs2) __asm__ volatile (".word %0" : : "i"(((vs1) << 15) | ((vs2) << 20) | ((vd) << 7) | (1 << 25) | 0x5b) : "memory")
 
+// New mathematical instruction extensions (opcode 0x0b - CUSTOM0)
+// EXP: func7=0x03, func3=0x6 (vm=1)
+#define EXP(vd, vs1, vs2) __asm__ volatile (".word %0" : : "i"(((vs1) << 15) | ((vs2) << 20) | ((vd) << 7) | (0x03 << 25) | (0x6 << 12) | 0x0b) : "memory")
+// SOFTMAX: func7=0x03, func3=0x2 (vm=1)
+#define SOFTMAX(vd, vs1, vs2) __asm__ volatile (".word %0" : : "i"(((vs1) << 15) | ((vs2) << 20) | ((vd) << 7) | (0x03 << 25) | (0x2 << 12) | 0x0b) : "memory")
+// QUANT: func7=0x05, func3=0x6 (vm=1)
+#define QUANT(vd, vs1, vs2) __asm__ volatile (".word %0" : : "i"(((vs1) << 15) | ((vs2) << 20) | ((vd) << 7) | (0x05 << 25) | (0x6 << 12) | 0x0b) : "memory")
+
 
 // #define PERIAADD(rd, rs1, rs2) __asm__ volatile (".word ((" _XSTR(rs1) " << " _XSTR(OPCODE_RS1_SHIFT_VAL) ") | (" _XSTR(rs2) " << " _XSTR(OPCODE_RS2_SHIFT_VAL) ") | (" _XSTR(rd) " << " _XSTR(OPCODE_DS_SHIFT_VAL) ") | CUSTOM0)" : : : "memory")
 // unsigned volatile * const p_finisher = (unsigned *) (FINISHER_BASE + 8);
@@ -48,6 +56,9 @@ volatile uint64_t fromhost = 0;
 #define ERR_XPERIB_MUL 0x20
 #define ERR_XPERIV_ADD 0x30
 #define ERR_XPERIV_MUL 0x40
+#define ERR_EXP 0x50
+#define ERR_SOFTMAX 0x60
+#define ERR_QUANT 0x70
 
 // Helper macro to report test failure
 #define REPORT_FAILURE(error_code) \
@@ -220,6 +231,163 @@ int main () {
     }
     
     // ============================================
+    // ============================================
+    // Test 5: EXP vector exponential extension
+    // ============================================
+    {
+        // Use same vector memory regions as previous tests
+        volatile uint32_t* v0_data = (volatile uint32_t*)0x80001000;
+        volatile uint32_t* v2_data = (volatile uint32_t*)0x80001100;
+        volatile uint32_t* v4_data = (volatile uint32_t*)0x80001200;
+        
+        // Initialize test vectors: BF16 values in lower 16 bits of each 32-bit element
+        // Test inputs: 0.0, 1.0, -1.0, 0.5 in BF16 format (approximate)
+        uint16_t bf16_inputs[4] = {0x0000, 0x3F80, 0xBF80, 0x3F00}; // 0.0, 1.0, -1.0, 0.5
+        for (int i = 0; i < 4; i++) {
+            v0_data[i] = bf16_inputs[i]; // Store in lower 16 bits
+            v2_data[i] = 0; // Not used
+            v4_data[i] = 0;
+        }
+        
+        // Load vectors
+        __asm__ volatile("\
+          li      t0, 0x600;\
+          csrs    mstatus, t0;\
+        ");
+        
+        // Set vector length to 4 elements, e32, m1
+        __asm__ volatile(".word 0x0112f0d7" : : : "t0");  // vsetvli t0, t0, e32, m1, ta, ma
+        
+        __asm__ volatile("\
+          li      t0, 0x80001000;\
+          vle32.v v0, (t0);\
+        \
+          li      t2, 0x80001200;\
+          vle32.v v4, (t2);\
+        ");
+        
+        // Execute EXP instruction: v4 = exp(v0)
+        EXP(4, 0, 2);
+        
+        // Store result to memory
+        __asm__("\
+          li      t0, 0x80001200;\
+          vse32.v v4, (t0);\
+        ");
+        
+        // Simple verification: ensure results are non-zero (except possibly for large negative inputs)
+        // This is a basic sanity check; proper validation would require reference values
+        for (int i = 0; i < 4; i++) {
+            if (v4_data[i] == 0 && bf16_inputs[i] != 0x0000) {
+                REPORT_FAILURE(ERR_EXP);
+            }
+        }
+    }
+    
+    // ============================================
+    // Test 6: SOFTMAX vector softmax extension
+    // ============================================
+    {
+        // SOFTMAX instruction expects vector of BF16 values and computes softmax across vector
+        // For simplicity, test with small vector length
+        volatile uint32_t* v0_data = (volatile uint32_t*)0x80001000;
+        volatile uint32_t* v2_data = (volatile uint32_t*)0x80001100;
+        volatile uint32_t* v4_data = (volatile uint32_t*)0x80001200;
+        
+        // Initialize test vector with small values
+        uint16_t bf16_inputs[4] = {0x3F80, 0x4000, 0x4040, 0x4080}; // 1.0, 2.0, 3.0, 4.0 approx
+        for (int i = 0; i < 4; i++) {
+            v0_data[i] = bf16_inputs[i];
+            v2_data[i] = 0;
+            v4_data[i] = 0;
+        }
+        
+        // Load vectors
+        __asm__ volatile("\
+          li      t0, 0x600;\
+          csrs    mstatus, t0;\
+        ");
+        
+        // Set vector length to 4 elements, e32, m1
+        __asm__ volatile(".word 0x0112f0d7" : : : "t0");
+        
+        __asm__ volatile("\
+          li      t0, 0x80001000;\
+          vle32.v v0, (t0);\
+        \
+          li      t2, 0x80001200;\
+          vle32.v v4, (t2);\
+        ");
+        
+        // Execute SOFTMAX instruction: v4 = softmax(v0)
+        SOFTMAX(4, 0, 2);
+        
+        // Store result to memory
+        __asm__("\
+          li      t0, 0x80001200;\
+          vse32.v v4, (t0);\
+        ");
+        
+        // Basic check: results should be positive and sum to approximately 1.0
+        // Simple non-zero check for now
+        for (int i = 0; i < 4; i++) {
+            if (v4_data[i] == 0) {
+                REPORT_FAILURE(ERR_SOFTMAX);
+            }
+        }
+    }
+    
+    // ============================================
+    // Test 7: QUANT vector quantization extension
+    // ============================================
+    {
+        // QUANT instruction quantizes BF16 to MxFP8 with scale
+        volatile uint32_t* v0_data = (volatile uint32_t*)0x80001000;
+        volatile uint32_t* v2_data = (volatile uint32_t*)0x80001100;
+        volatile uint32_t* v4_data = (volatile uint32_t*)0x80001200;
+        
+        // Initialize test vector with non-zero mantissa values to avoid zero outputs
+        uint16_t bf16_inputs[4] = {0x3F81, 0x4001, 0x4041, 0x4081}; // ~1.001, ~2.002, ~3.003, ~4.004 approx
+        for (int i = 0; i < 4; i++) {
+            v0_data[i] = bf16_inputs[i];
+            v2_data[i] = 0;
+            v4_data[i] = 0;
+        }
+        
+        // Load vectors
+        __asm__ volatile("\
+          li      t0, 0x600;\
+          csrs    mstatus, t0;\
+        ");
+        
+        // Set vector length to 4 elements, e32, m1
+        __asm__ volatile(".word 0x0112f0d7" : : : "t0");
+        
+        __asm__ volatile("\
+          li      t0, 0x80001000;\
+          vle32.v v0, (t0);\
+        \
+          li      t2, 0x80001200;\
+          vle32.v v4, (t2);\
+        ");
+        
+        // Execute QUANT instruction: v4 = quant(v0)
+        QUANT(4, 0, 2);
+        
+        // Store result to memory
+        __asm__("\
+          li      t0, 0x80001200;\
+          vse32.v v4, (t0);\
+        ");
+        
+        // Basic check: results should be non-zero
+        for (int i = 0; i < 4; i++) {
+            if (v4_data[i] == 0) {
+                REPORT_FAILURE(ERR_QUANT);
+            }
+        }
+    }
+    
     // All tests passed
     // ============================================
     

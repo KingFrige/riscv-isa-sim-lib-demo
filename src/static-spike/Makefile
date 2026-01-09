@@ -16,8 +16,9 @@ SPIKE_CONFIGURE_STAMP = $(SPIKE_BUILD_DIR)/.configure_stamp
 
 # Extension directories
 EXTENSIONS_DIR = $(ROOT_DIR)/extensions
-EXTENSIONS_SRC = $(wildcard $(EXTENSIONS_DIR)/*.cc)
-EXTENSIONS_OBJ = $(patsubst $(EXTENSIONS_DIR)/%.cc,$(EXTENSIONS_DIR)/%.o,$(EXTENSIONS_SRC))
+EXTENSIONS_SRC = $(wildcard $(EXTENSIONS_DIR)/*.cc) $(wildcard $(EXTENSIONS_DIR)/*.cpp)
+EXTENSIONS_OBJ = $(patsubst $(EXTENSIONS_DIR)/%.cc,$(EXTENSIONS_DIR)/%.o,$(filter %.cc,$(EXTENSIONS_SRC))) \
+                 $(patsubst $(EXTENSIONS_DIR)/%.cpp,$(EXTENSIONS_DIR)/%.o,$(filter %.cpp,$(EXTENSIONS_SRC)))
 EXTENSIONS_DEP = $(EXTENSIONS_OBJ:.o=.d)
 
 # RISC-V toolchain path (can be overridden)
@@ -51,13 +52,18 @@ LDLIBS = -lriscv -lsoftfloat -ldisasm -lfesvr -ldl -lpthread
 
 # Default target
 all: $(TARGET)
+	make -C firmware/
 
 # Include dependencies
 -include $(EXTENSIONS_DEP)
 -include $(CUSTOM_SPIKE_DEP)
 
-# Build extensions
+# Build extensions (.cc files)
 $(EXTENSIONS_DIR)/%.o: $(EXTENSIONS_DIR)/%.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+# Build extensions (.cpp files)
+$(EXTENSIONS_DIR)/%.o: $(EXTENSIONS_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 # Build custom spike main

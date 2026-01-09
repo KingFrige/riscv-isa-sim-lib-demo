@@ -37,7 +37,7 @@ static reg_t peri_v_mul_impl(processor_t* p, insn_t insn, reg_t pc)
   VI_VV_LOOP
   ({
     vd = vs1 * vs2;
-    fprintf(stderr, "xperiv_mul: vd[%lu] = vs1[%lu] + vs2[%lu] = %ld + %ld = %ld\n",
+    fprintf(stderr, "xperiv_mul: vd[%lu] = vs1[%lu] * vs2[%lu] = %ld * %ld = %ld\n",
             i, i, i, (long)vs1, (long)vs2, (long)vd);
   })
   return pc + 4;

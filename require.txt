@@ -12,4 +12,5 @@
 1. 添加exp/softmax/quant三条指令
 1. 指令编码参考 docs/insn-decode.jpg, docs/insn.jpg
 1. 内部实现已经在C_src中，要求按照之前添加指令的方式添加新的指令框架，使用C_src中的process()替换实现
+1. 实现要求将C_src中的代码复制到static-spike，不可依赖C_src目录
 1. 添加测试，提取C_src中对应main函数中的测试方法到测试函数中
