@@ -3,6 +3,8 @@ $(error RISCV_PATH is not set)
 endif
 LD_LIB_DIR = $(RISCV_PATH)/lib
 
+O ?= .
+
 CC = $(RISCV_PATH)/bin/riscv64-unknown-elf-gcc
 OC = $(RISCV_PATH)/bin/riscv64-unknown-elf-objcopy
 OD = $(RISCV_PATH)/bin/riscv64-unknown-elf-objdump
@@ -39,25 +41,29 @@ INCLUDE = -I.
 C_SRC = ./main.c
 S_SRC = ./start.S
 
-OBJS += $(S_SRC:.S=.o)
-OBJS += $(C_SRC:.c=.o)
+OBJS += $(O)/$(S_SRC:.S=.o)
+OBJS += $(O)/$(C_SRC:.c=.o)
 
-%.o: %.c
+$(O)/%.o: %.c
+	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(INCLUDE) $< -o $@
 
-%.o: %.S
+$(O)/%.o: %.S
+	@mkdir -p $(dir $@)
 	$(CC) -x assembler-with-cpp $(ASFLAGS) $(INCLUDE) $< -o $@
 
-%.elf: $(OBJS)
+$(O)/%.elf: $(OBJS)
+	@mkdir -p $(dir $@)
 	$(CC) $^ $(LFLAGS) -o $@
 
-%.lst: %.elf
+$(O)/%.lst: $(O)/%.elf
+	@mkdir -p $(dir $@)
 	$(OD) --source --all-headers --demangle --line-numbers --wide $< > $@
 
 .PHONY: all
-all: main.lst main.elf
+all: $(O)/main.lst $(O)/main.elf
 
 .PHONY: clean
 clean:
-	rm -f $(OBJS) *.o *.elf *.lst
+	rm -f $(OBJS) $(O)/*.o $(O)/*.elf $(O)/*.lst
 

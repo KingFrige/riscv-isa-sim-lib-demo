@@ -8,6 +8,7 @@ PROJECT_ROOT := $(realpath $(ROOT_DIR)/../..)
 # Spike directories
 SPIKE_SOURCE_DIR ?= $(PROJECT_ROOT)/riscv-isa-sim
 SPIKE_DIR = $(patsubst %/,%,$(SPIKE_SOURCE_DIR))
+BUILD_DIR = $(ROOT_DIR)/build
 SPIKE_BUILD_DIR = $(SPIKE_DIR)/build
 SPIKE_INSTALL_DIR = $(SPIKE_DIR)/install
 SPIKE_INC_DIR = $(SPIKE_INSTALL_DIR)/include
@@ -17,8 +18,8 @@ SPIKE_CONFIGURE_STAMP = $(SPIKE_BUILD_DIR)/.configure_stamp
 # Extension directories
 EXTENSIONS_DIR = $(ROOT_DIR)/extensions
 EXTENSIONS_SRC = $(wildcard $(EXTENSIONS_DIR)/*.cc) $(wildcard $(EXTENSIONS_DIR)/*.cpp)
-EXTENSIONS_OBJ = $(patsubst $(EXTENSIONS_DIR)/%.cc,$(EXTENSIONS_DIR)/%.o,$(filter %.cc,$(EXTENSIONS_SRC))) \
-                 $(patsubst $(EXTENSIONS_DIR)/%.cpp,$(EXTENSIONS_DIR)/%.o,$(filter %.cpp,$(EXTENSIONS_SRC)))
+EXTENSIONS_OBJ = $(patsubst $(EXTENSIONS_DIR)/%.cc,$(BUILD_DIR)/extensions/%.o,$(filter %.cc,$(EXTENSIONS_SRC))) \
+                 $(patsubst $(EXTENSIONS_DIR)/%.cpp,$(BUILD_DIR)/extensions/%.o,$(filter %.cpp,$(EXTENSIONS_SRC)))
 EXTENSIONS_DEP = $(EXTENSIONS_OBJ:.o=.d)
 
 # RISC-V toolchain path (can be overridden)
@@ -26,11 +27,11 @@ RISCV_PATH ?= /home/korben/tools/riscv/master-v20251230
 
 # Source files for our custom spike
 CUSTOM_SPIKE_SRC = $(ROOT_DIR)/spike_main.cc
-CUSTOM_SPIKE_OBJ = $(CUSTOM_SPIKE_SRC:.cc=.o)
+CUSTOM_SPIKE_OBJ = $(BUILD_DIR)/spike_main.o
 CUSTOM_SPIKE_DEP = $(CUSTOM_SPIKE_OBJ:.o=.d)
 
 # Target executable
-TARGET = spike-static
+TARGET = $(BUILD_DIR)/spike-static
 
 # Compiler flags
 CXX ?= g++
@@ -52,22 +53,25 @@ LDLIBS = -lriscv -lsoftfloat -ldisasm -lfesvr -ldl -lpthread
 
 # Default target
 all: $(TARGET)
-	make -C firmware/
+	cd firmware && $(MAKE) O=$(BUILD_DIR)/firmware
 
 # Include dependencies
 -include $(EXTENSIONS_DEP)
 -include $(CUSTOM_SPIKE_DEP)
 
 # Build extensions (.cc files)
-$(EXTENSIONS_DIR)/%.o: $(EXTENSIONS_DIR)/%.cc
+$(BUILD_DIR)/extensions/%.o: $(EXTENSIONS_DIR)/%.cc
+	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 # Build extensions (.cpp files)
-$(EXTENSIONS_DIR)/%.o: $(EXTENSIONS_DIR)/%.cpp
+$(BUILD_DIR)/extensions/%.o: $(EXTENSIONS_DIR)/%.cpp
+	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 # Build custom spike main
-$(ROOT_DIR)/%.o: $(ROOT_DIR)/%.cc
+$(BUILD_DIR)/%.o: $(ROOT_DIR)/%.cc
+	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 # Link everything together
@@ -98,15 +102,15 @@ reconfigure_spike:
 
 # Test program compilation
 TEST_SW_DIR = $(ROOT_DIR)/firmware
-TEST_ELF = $(TEST_SW_DIR)/main.elf
+TEST_ELF = $(BUILD_DIR)/firmware/main.elf
 
 .PHONY: build_test
 build_test:
-	cd $(TEST_SW_DIR) && RISCV_PATH=$(RISCV_PATH) make
+	cd $(TEST_SW_DIR) && RISCV_PATH=$(RISCV_PATH) make O=$(BUILD_DIR)/firmware
 
 .PHONY: run
 run: $(TEST_ELF)
-	./spike-static --isa=rv64imafdcv_zicsr_xperia_xperiv_xperib_xperivmul -l --log=log.txt --log-commits --instructions=2000 $(TEST_ELF)
+	$(TARGET) --isa=rv64imafdcv_zicsr_xperia_xperiv_xperib_xperivmul -l --log=log.txt --log-commits --instructions=2000 $(TEST_ELF)
 
 # Rule to ensure test program is built
 $(TEST_ELF): build_test
