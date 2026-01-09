@@ -132,8 +132,8 @@ static reg_t softmax_impl(processor_t* p, insn_t insn, reg_t pc)
   // Collect input values from vs1 vector
   std::vector<uint16_t> input_values;
   for (size_t i = 0; i < current_vl; i++) {
-    // Read vs1 element (BF16 in lower 16 bits)
-    uint16_t val = p->VU.elt<uint16_t>(insn.rs1(), i) & 0xFFFF;
+    // Read vs1 element (16-bit BF16 value)
+    uint16_t val = p->VU.elt<uint16_t>(insn.rs1(), i);
     input_values.push_back(val);
   }
   
@@ -177,7 +177,7 @@ static reg_t quant_impl(processor_t* p, insn_t insn, reg_t pc)
   // Collect input values from vs1 vector
   std::vector<uint16_t> input_values;
   for (size_t i = 0; i < current_vl; i++) {
-    uint16_t val = p->VU.elt<uint32_t>(insn.rs1(), i) & 0xFFFF;
+    uint16_t val = p->VU.elt<uint16_t>(insn.rs1(), i);
     input_values.push_back(val);
   }
   
@@ -187,11 +187,11 @@ static reg_t quant_impl(processor_t* p, insn_t insn, reg_t pc)
   // Process quantization
   quant_model.process(input_values.data());
   
-  // Store results back to vd vector (8-bit values packed into 32-bit words)
+  // Store results back to vd vector (8-bit values in 16-bit elements)
   for (size_t i = 0; i < current_vl; i++) {
     uint8_t quantized = quant_model.o_MxFp8Act[i];
-    // Pack into lower 8 bits of 32-bit element
-    p->VU.elt<uint32_t>(insn.rd(), i) = quantized;
+    // Store 8-bit value in 16-bit element (upper 8 bits are zero)
+    p->VU.elt<uint16_t>(insn.rd(), i) = quantized;
     fprintf(stderr, "xperiv: quant vd[%lu] = 0x%02x\n", i, quantized);
   }
   
