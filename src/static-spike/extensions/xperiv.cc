@@ -20,6 +20,9 @@
 #define MATCH_PERI_V_ADD 0x0000002b
 #define MASK_PERI_V_ADD  0xfc00707f
 
+#define MATCH_PERI_V_MUL 0x0000005b
+#define MASK_PERI_V_MUL  0xfc00707f
+
 // New instruction definitions for mathematical extensions
 #define MATCH_EXP        0x0600600b  // func7=0x03, func3=0x6, opcode=0x0b (vm=1)
 #define MATCH_SOFTMAX    0x0600200b  // func7=0x03, func3=0x2, opcode=0x0b (vm=1)
@@ -62,6 +65,17 @@ static reg_t peri_v_add_impl(processor_t* p, insn_t insn, reg_t pc)
             i, i, i, (long)vs1, (long)vs2, (long)vd);
   })
   fprintf(stderr, "xperiv: peri_v_add_impl returning\n");
+  return pc + 4;
+}
+
+static reg_t peri_v_mul_impl(processor_t* p, insn_t insn, reg_t pc)
+{
+  VI_VV_LOOP
+  ({
+    vd = vs1 * vs2;
+    fprintf(stderr, "xperiv_mul: vd[%lu] = vs1[%lu] * vs2[%lu] = %ld * %ld = %ld\n",
+            i, i, i, (long)vs1, (long)vs2, (long)vd);
+  })
   return pc + 4;
 }
 
@@ -198,6 +212,10 @@ public:
     insns.push_back({MATCH_PERI_V_ADD, MASK_PERI_V_ADD, 
                      peri_v_add_impl, peri_v_add_impl, peri_v_add_impl, peri_v_add_impl,
                      peri_v_add_impl, peri_v_add_impl, peri_v_add_impl, peri_v_add_impl});
+
+    insns.push_back({MATCH_PERI_V_MUL, MASK_PERI_V_MUL,
+                     peri_v_mul_impl, peri_v_mul_impl, peri_v_mul_impl, peri_v_mul_impl,
+                     peri_v_mul_impl, peri_v_mul_impl, peri_v_mul_impl, peri_v_mul_impl});
     
     // Add new mathematical instructions
     insns.push_back({MATCH_EXP, MASK_CUSTOM0,
@@ -219,6 +237,7 @@ public:
     std::vector<disasm_insn_t*> insns;
     
     insns.push_back(new disasm_insn_t("peri.v.add", MATCH_PERI_V_ADD, MASK_PERI_V_ADD, {&xvd, &xvs1, &xvs2}));
+    insns.push_back(new disasm_insn_t("peri.v.mul", MATCH_PERI_V_MUL, MASK_PERI_V_MUL, {&xvd, &xvs1, &xvs2}));
     
     // Add disassembly for new instructions
     insns.push_back(new disasm_insn_t("exp", MATCH_EXP, MASK_CUSTOM0, {&xvd, &xvs1, &xvs2}));

@@ -25,27 +25,16 @@ volatile uint64_t fromhost = 0;
 #define PERIAADD(rd, rs1, rs2) __asm__ volatile (".word %0" : : "i"(((rs1) << 15) | ((rs2) << 20) | ((rd) << 7) | 0x0b) : "memory")
 #define PERIVADD(vd, vs1, vs2) __asm__ volatile (".word %0" : : "i"(((vs1) << 15) | ((vs2) << 20) | ((vd) << 7) | (1 << 25) | 0x2b))
 
-// XPERIB scalar multiplication extension (opcode 0x4b - CUSTOM-2)
-#define PERIBMUL(rd, rs1, rs2) __asm__ volatile (".word %0" : : "i"(((rs1) << 15) | ((rs2) << 20) | ((rd) << 7) | 0x4b) : "memory")
-
 // XPERIVMUL vector multiplication extension (opcode 0x5b - CUSTOM-3)
 #define PERIVMUL(vd, vs1, vs2) __asm__ volatile (".word %0" : : "i"(((vs1) << 15) | ((vs2) << 20) | ((vd) << 7) | (1 << 25) | 0x5b) : "memory")
 
 // New mathematical instruction extensions (opcode 0x0b - CUSTOM0)
 // EXP: func7=0x03, func3=0x6 (vm=1)
-#define EXP(vd, vs1, vs2) __asm__ volatile (".word %0" : : "i"(((vs1) << 15) | ((vs2) << 20) | ((vd) << 7) | (0x03 << 25) | (0x6 << 12) | 0x0b) : "memory")
+#define EXP(vd, vs1) __asm__ volatile (".word %0" : : "i"(((vs1) << 15) | ((vd) << 7) | (0x03 << 25) | (0x6 << 12) | 0x0b) : "memory")
 // SOFTMAX: func7=0x03, func3=0x2 (vm=1)
-#define SOFTMAX(vd, vs1, vs2) __asm__ volatile (".word %0" : : "i"(((vs1) << 15) | ((vs2) << 20) | ((vd) << 7) | (0x03 << 25) | (0x2 << 12) | 0x0b) : "memory")
+#define SOFTMAX(vd, vs1) __asm__ volatile (".word %0" : : "i"(((vs1) << 15) | ((vd) << 7) | (0x03 << 25) | (0x2 << 12) | 0x0b) : "memory")
 // QUANT: func7=0x05, func3=0x6 (vm=1)
-#define QUANT(vd, vs1, vs2) __asm__ volatile (".word %0" : : "i"(((vs1) << 15) | ((vs2) << 20) | ((vd) << 7) | (0x05 << 25) | (0x6 << 12) | 0x0b) : "memory")
-
-
-// #define PERIAADD(rd, rs1, rs2) __asm__ volatile (".word ((" _XSTR(rs1) " << " _XSTR(OPCODE_RS1_SHIFT_VAL) ") | (" _XSTR(rs2) " << " _XSTR(OPCODE_RS2_SHIFT_VAL) ") | (" _XSTR(rd) " << " _XSTR(OPCODE_DS_SHIFT_VAL) ") | CUSTOM0)" : : : "memory")
-// unsigned volatile * const p_finisher = (unsigned *) (FINISHER_BASE + 8);
-
-// #define PERIVADD(vd, vs1, vs2) __asm__ volatile (".word ((" _XSTR(vs1) " << " _XSTR(OPCODE_RS1_SHIFT_VAL) ") | (" _XSTR(vs2) " << " _XSTR(OPCODE_RS2_SHIFT_VAL) ") | (" _XSTR(vd) " << " _XSTR(OPCODE_DS_SHIFT_VAL) ") | CUSTOM1)" : : : "memory")
-
-
+#define QUANT(vd, vs1) __asm__ volatile (".word %0" : : "i"(((vs1) << 15) | ((vd) << 7) | (0x05 << 25) | (0x6 << 12) | 0x0b) : "memory")
 
 // Test result codes
 #define TEST_PASS 1
@@ -53,7 +42,6 @@ volatile uint64_t fromhost = 0;
 
 // Error codes for different test failures
 #define ERR_XPERIA_ADD 0x10
-#define ERR_XPERIB_MUL 0x20
 #define ERR_XPERIV_ADD 0x30
 #define ERR_XPERIV_MUL 0x40
 #define ERR_EXP 0x50
@@ -125,37 +113,7 @@ int main () {
     }
     
     // ============================================
-    // Test 2: XPERIB scalar multiplication extension
-    // ============================================
-    {
-        // Set up test values
-        long a4 = 7;
-        long a5 = 6;
-        long a3 = 0;
-        
-        // Use inline assembly to set registers
-        __asm__ volatile (
-            "mv a4, %0\n\t"
-            "mv a5, %1\n\t"
-            : // no outputs
-            : "r"(a4), "r"(a5)
-            : "a4", "a5"
-        );
-        
-        // Execute XPERIB multiplication: a3 = a4 * a5
-        PERIBMUL(13, 14, 15);  // a3 = a4 * a5
-        
-        // Read result
-        __asm__ volatile ("mv %0, a3" : "=r"(a3));
-        
-        // Verify result: 7 * 6 = 42
-        if (a3 != 42) {
-            REPORT_FAILURE(ERR_XPERIB_MUL);
-        }
-    }
-    
-    // ============================================
-    // Test 3 & 4: Vector extensions
+    // Test 2 & 3: Vector extensions
     // ============================================
     {
         // Vector test data at fixed addresses
@@ -189,7 +147,7 @@ int main () {
           vle32.v v2, (t2);\
         ");
         
-        // Test 3: XPERIV vector addition extension
+        // Test 2: XPERIV vector addition extension
         // PERIVADD(4, 0, 2);     // v4 = v0 + v2
         // Use the macro instead of hardcoded instruction
         PERIVADD(4, 0, 2);
@@ -210,7 +168,7 @@ int main () {
             }
         }
         
-        // Test 4: XPERIVMUL vector multiplication extension
+        // Test 3: XPERIVMUL vector multiplication extension
         PERIVMUL(6, 0, 2);     // v6 = v0 * v2
         
         // Store v6 to memory for verification
@@ -231,13 +189,11 @@ int main () {
     }
     
     // ============================================
-    // ============================================
-    // Test 5: EXP vector exponential extension
+    // Test 4: EXP vector exponential extension
     // ============================================
     {
         // Use same vector memory regions as previous tests
         volatile uint32_t* v0_data = (volatile uint32_t*)0x80001000;
-        volatile uint32_t* v2_data = (volatile uint32_t*)0x80001100;
         volatile uint32_t* v4_data = (volatile uint32_t*)0x80001200;
         
         // Initialize test vectors: BF16 values in lower 16 bits of each 32-bit element
@@ -245,7 +201,6 @@ int main () {
         uint16_t bf16_inputs[4] = {0x0000, 0x3F80, 0xBF80, 0x3F00}; // 0.0, 1.0, -1.0, 0.5
         for (int i = 0; i < 4; i++) {
             v0_data[i] = bf16_inputs[i]; // Store in lower 16 bits
-            v2_data[i] = 0; // Not used
             v4_data[i] = 0;
         }
         
@@ -267,7 +222,7 @@ int main () {
         ");
         
         // Execute EXP instruction: v4 = exp(v0)
-        EXP(4, 0, 2);
+        EXP(4, 0);
         
         // Store result to memory
         __asm__("\
@@ -285,20 +240,18 @@ int main () {
     }
     
     // ============================================
-    // Test 6: SOFTMAX vector softmax extension
+    // Test 5: SOFTMAX vector softmax extension
     // ============================================
     {
         // SOFTMAX instruction expects vector of BF16 values and computes softmax across vector
         // For simplicity, test with small vector length
         volatile uint32_t* v0_data = (volatile uint32_t*)0x80001000;
-        volatile uint32_t* v2_data = (volatile uint32_t*)0x80001100;
         volatile uint32_t* v4_data = (volatile uint32_t*)0x80001200;
         
         // Initialize test vector with small values
         uint16_t bf16_inputs[4] = {0x3F80, 0x4000, 0x4040, 0x4080}; // 1.0, 2.0, 3.0, 4.0 approx
         for (int i = 0; i < 4; i++) {
             v0_data[i] = bf16_inputs[i];
-            v2_data[i] = 0;
             v4_data[i] = 0;
         }
         
@@ -320,7 +273,7 @@ int main () {
         ");
         
         // Execute SOFTMAX instruction: v4 = softmax(v0)
-        SOFTMAX(4, 0, 2);
+        SOFTMAX(4, 0);
         
         // Store result to memory
         __asm__("\
@@ -338,19 +291,17 @@ int main () {
     }
     
     // ============================================
-    // Test 7: QUANT vector quantization extension
+    // Test 6: QUANT vector quantization extension
     // ============================================
     {
         // QUANT instruction quantizes BF16 to MxFP8 with scale
         volatile uint32_t* v0_data = (volatile uint32_t*)0x80001000;
-        volatile uint32_t* v2_data = (volatile uint32_t*)0x80001100;
         volatile uint32_t* v4_data = (volatile uint32_t*)0x80001200;
         
         // Initialize test vector with non-zero mantissa values to avoid zero outputs
         uint16_t bf16_inputs[4] = {0x3F81, 0x4001, 0x4041, 0x4081}; // ~1.001, ~2.002, ~3.003, ~4.004 approx
         for (int i = 0; i < 4; i++) {
             v0_data[i] = bf16_inputs[i];
-            v2_data[i] = 0;
             v4_data[i] = 0;
         }
         
@@ -372,7 +323,7 @@ int main () {
         ");
         
         // Execute QUANT instruction: v4 = quant(v0)
-        QUANT(4, 0, 2);
+        QUANT(4, 0);
         
         // Store result to memory
         __asm__("\
