@@ -5,3 +5,11 @@
 1. 勿直接修改riscv-isa-sim/仓库，需要修改可以直接在外部增加新的层级，改变编译系统
 1. 在上述修改的基础上增加新的指令，参考xperiv / xperia
 1. 测试新的实现
+
+
+## TODO
+
+1. 添加exp/softmax/quant三条指令
+1. 指令编码参考 docs/insn-decode.jpg, docs/insn.jpg
+1. 内部实现已经在C_src中，要求按照之前添加指令的方式添加新的指令框架，使用C_src中的process()替换实现
+1. 添加测试，提取C_src中对应main函数中的测试方法到测试函数中
