@@ -244,9 +244,9 @@ public:
     insns.push_back(new disasm_insn_t("peri.v.mul", MATCH_PERI_V_MUL, MASK_PERI_V_MUL, {&xvd, &xvs1, &xvs2}));
     
     // Add disassembly for new instructions
-    insns.push_back(new disasm_insn_t("exp", MATCH_EXP, MASK_CUSTOM0, {&xvd, &xvs1, &xvs2}));
-    insns.push_back(new disasm_insn_t("softmax", MATCH_SOFTMAX, MASK_CUSTOM0, {&xvd, &xvs1, &xvs2}));
-    insns.push_back(new disasm_insn_t("quant", MATCH_QUANT, MASK_CUSTOM0, {&xvd, &xvs1, &xvs2}));
+    insns.push_back(new disasm_insn_t("exp", MATCH_EXP, MASK_CUSTOM0, {&xvd, &xvs1}));
+    insns.push_back(new disasm_insn_t("softmax", MATCH_SOFTMAX, MASK_CUSTOM0, {&xvd, &xvs1}));
+    insns.push_back(new disasm_insn_t("quant", MATCH_QUANT, MASK_CUSTOM0, {&xvd, &xvs1}));
     
     return insns;
   }
