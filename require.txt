@@ -11,8 +11,13 @@
 - [x] 实现要求将C_src中的代码复制到top，不可依赖C_src目录
 - [x] 添加测试，提取C_src中对应main函数中的测试方法到测试函数中
 - [x] firmware中修复每个测试的vsetvli, 将这段代码提取到函数，每个测试独立配置自己的e32/e16
+- [x] 修复新增加指令commit_log问题，commit log能显示指令结果的变化，新增加的quant/softmax没有显示，debug修复问题
+- [x] 整合 src/top 下的build到 项目目录下的build_all.sh下
+- [x] 输出文件到 build/下
+- [x] 执行位置在项目目录下，使用build下生成的文件
+- [x] 不能使用其他地方执行复制过来，有瑕疵
+- [x] 去除构建过程中重复的逻辑，整合到build_all.sh
 
 
 ## TODO
 
-- [ ] 修复新增加指令commit_log问题，commit log能显示指令结果的变化，新增加的quant/softmax没有显示，debug修复问题

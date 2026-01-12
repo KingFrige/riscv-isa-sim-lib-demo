@@ -31,7 +31,7 @@ CUSTOM_SPIKE_OBJ = $(BUILD_DIR)/spike_main.o
 CUSTOM_SPIKE_DEP = $(CUSTOM_SPIKE_OBJ:.o=.d)
 
 # Target executable
-TARGET = $(BUILD_DIR)/spike-static
+TARGET = $(BUILD_DIR)/top-main
 
 # Compiler flags
 CXX ?= g++
@@ -126,7 +126,7 @@ clean_test:
 
 .PHONY: clean
 clean: clean_test
-	$(RM) $(EXTENSIONS_OBJ) $(EXTENSIONS_DEP) $(CUSTOM_SPIKE_OBJ) $(CUSTOM_SPIKE_DEP) $(TARGET)
+	$(RM) $(EXTENSIONS_OBJ) $(EXTENSIONS_DEP) $(CUSTOM_SPIKE_OBJ) $(CUSTOM_SPIKE_DEP) $(TARGET) log.txt
 
 .PHONY: distclean
 distclean: clean clean_spike

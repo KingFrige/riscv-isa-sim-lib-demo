@@ -9,6 +9,8 @@ Each use-case has its own folder in which you can find separate `README.md` file
 1. `src/cpp` - C++ memory simulator
 2. `src/systemc` - SystemC wrapper
 
+## require
+
 
 ## init repo
 
@@ -21,22 +23,6 @@ git submodule update --init --recursive
 
 ## run
 
-1. build spike
-
 ```bash
-bash build-spike.sh
-```
-
-2. set env
-
-```bash
-source build-spike.sh
-```
-
-3. run
-
-```bash
-cd src/cpp
-
-make
+./build_all.sh -r
 ```

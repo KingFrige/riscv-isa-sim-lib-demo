@@ -1,4 +1,4 @@
-#define DECODE_MACRO_USAGE_LOGGED 0
+#define DECODE_MACRO_USAGE_LOGGED 1
 #include <sys/syscall.h>
 #include "extension.h"
 #include "processor.h"
@@ -149,7 +149,9 @@ static reg_t softmax_impl(processor_t* p, insn_t insn, reg_t pc)
   // Store results back to vd vector
   for (size_t i = 0; i < current_vl; i++) {
     uint16_t output_val = result.final_output[0][i];
-    p->VU.elt<uint16_t>(insn.rd(), i) = output_val;
+    // Use the write function that properly logs to commit log
+    auto& vd_reg = p->VU.elt<uint16_t>(insn.rd(), i, true);
+    vd_reg = output_val;
     fprintf(stderr, "xperiv: softmax vd[%lu] = 0x%04x\n", i, output_val);
   }
   
@@ -191,7 +193,9 @@ static reg_t quant_impl(processor_t* p, insn_t insn, reg_t pc)
   for (size_t i = 0; i < current_vl; i++) {
     uint8_t quantized = quant_model.o_MxFp8Act[i];
     // Store 8-bit value in 16-bit element (upper 8 bits are zero)
-    p->VU.elt<uint16_t>(insn.rd(), i) = quantized;
+    // Use the write function that properly logs to commit log
+    auto& vd_reg = p->VU.elt<uint16_t>(insn.rd(), i, true);
+    vd_reg = quantized;
     fprintf(stderr, "xperiv: quant vd[%lu] = 0x%02x\n", i, quantized);
   }
   

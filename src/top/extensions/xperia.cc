@@ -1,4 +1,4 @@
-#define DECODE_MACRO_USAGE_LOGGED 0
+#define DECODE_MACRO_USAGE_LOGGED 1
 #include <sys/syscall.h>
 #include "extension.h"
 #include "processor.h"

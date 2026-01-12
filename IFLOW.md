@@ -2,28 +2,46 @@
 
 ## 项目概述
 
-本项目演示如何将 [RISC-V ISA 模拟器 (Spike)](https://github.com/riscv-software-src/riscv-isa-sim) 作为库使用，并与外部模拟器环境集成。
+本项目演示如何将 [RISC-V ISA 模拟器 (Spike)](https://github.com/riscv-software-src/riscv-isa-sim) 作为库使用，并与外部模拟器环境集成。项目已进一步扩展，集成了针对 Llama.cpp 的 RISC-V 向量扩展，专门用于 AI 推理加速的自定义指令集扩展。
 
-目前包含三个主要用例：
+目前包含四个主要用例：
 1. **C++ 内存模拟器集成** - 将 Spike 与自定义 C++ 内存模拟器连接
 2. **SystemC 包装器** - 将 Spike 嵌入 SystemC 环境，创建完整的系统级仿真平台
 3. **静态链接 Spike** - 将自定义扩展与 Spike 静态链接，创建独立的可执行文件（已实现）
+4. **Llama.cpp RISC-V 向量扩展** - 为 AI 推理实现自定义的 exp、softmax、quant 指令
 
 此外，项目还包含一个实验性扩展示例 (`src/xperimental`)，展示了如何为 Spike 添加自定义指令扩展。
 
 ## 技术栈
 
 - **核心模拟器**: RISC-V ISA Simulator (Spike)
-- **编程语言**: C++ (主程序), C (测试软件), SystemC (系统级建模)
+- **编程语言**: C++ (主程序), C (测试软件), SystemC (系统级建模), RISC-V 汇编
 - **构建系统**: GNU Make, Autotools (Spike 子模块)
 - **仿真环境**: SystemC 2.3+ (可选)
 - **工具链**: RISC-V GNU 工具链 (需支持 rv64imafdcv 架构)
+- **AI 推理**: 集成 BFloat16、MxFP8 等 AI 精度处理
 
 ## 目录结构
 
 ```
 .
 ├── riscv-isa-sim/          # Spike 子模块 (RISC-V ISA 模拟器)
+├── C_src/                  # Llama.cpp RISC-V 向量扩展实现
+│   ├── config.h            # 配置文件
+│   ├── Makefile            # 构建配置
+│   ├── util.c/h            # 工具函数
+│   ├── riscv/              # RISC-V 向量扩展实现
+│   │   ├── BF16.cpp/hpp    # BFloat16 处理单元
+│   │   ├── custom_expp.cpp/hpp # BF16 e^x 近似计算单元
+│   │   ├── SoftmaxCore.cpp/hpp # Softmax 核心计算单元
+│   │   ├── MxFp8ActQuant.cpp/hpp # MXFP8 激活量化单元
+│   │   ├── main_expp.cpp   # exp 单元测试主程序
+│   │   ├── main_quant.cpp  # quant 单元测试主程序
+│   │   ├── main_softmax.cpp # softmax 单元测试主程序
+│   │   └── single_expp.cpp # 单值 exp 调试程序
+│   ├── gemm/               # GEMM 运算实现
+│   ├── log/                # 测试日志输出
+│   └── script/             # 数据处理脚本
 ├── src/                    # 源代码目录
 │   ├── cpp/                # C++ 内存模拟器集成
 │   │   ├── sw/             # 测试软件
@@ -32,25 +50,27 @@
 │   │   ├── memory_simulator.cc # 内存模拟器实现
 │   │   ├── main.cc         # 主程序入口
 │   │   └── Makefile        # 构建配置
-│   ├── top/       # 静态链接 Spike 集成
+│   ├── top/                # 静态链接 Spike 集成 + AI 扩展
 │   │   ├── extensions/     # 自定义扩展实现
 │   │   │   ├── decode_macros.h
 │   │   │   ├── insn_macros.h
 │   │   │   ├── primitiveTypes.h
 │   │   │   ├── specialize.h
 │   │   │   ├── v_ext_macros.h
+│   │   │   ├── BF16.cpp/hpp # BFloat16 处理单元
+│   │   │   ├── custom_expp.cpp/hpp # BF16 e^x 近似计算
+│   │   │   ├── SoftmaxCore.cpp/hpp # Softmax 计算核心
+│   │   │   ├── MxFp8ActQuant.cpp/hpp # MXFP8 量化核心
 │   │   │   ├── xperia.cc   # 标量扩展（加法）
-│   │   │   ├── xperib.cc   # 新增标量扩展（乘法）
-│   │   │   ├── xperiv.cc   # 向量扩展（加法）
-│   │   │   └── xperiv_mul.cc # 新增向量乘法扩展
+│   │   │   └── xperiv.cc   # 向量扩展（加法、乘法及 AI 指令）
 │   │   ├── firmware/       # 测试固件
-│   │   │   ├── main.c      # 测试程序
+│   │   │   ├── main.c      # 测试程序（包含 exp/softmax/quant 测试）
 │   │   │   ├── start.S     # 启动代码
 │   │   │   ├── script.ld   # 链接脚本
 │   │   │   └── Makefile    # 固件构建配置
 │   │   ├── spike_main.cc   # 自定义 Spike 主程序
 │   │   ├── Makefile        # 静态链接构建配置
-│   │   └── spike-static    # 生成的静态链接可执行文件
+│   │   └── build/          # 构建输出目录
 │   ├── systemc/            # SystemC 集成
 │   │   ├── memory/         # 内存模型
 │   │   ├── turbo/          # 处理器核心包装器
@@ -68,6 +88,7 @@
 ├── set-env.sh              # 环境变量设置脚本
 ├── require.txt             # 项目需求说明
 ├── README.md               # 项目总览
+├── IFLOW.md                # 项目文档
 └── .gitmodules             # Git 子模块配置
 ```
 
@@ -125,13 +146,40 @@ make demo      # 编译
 ./demo         # 运行
 ```
 
-#### 静态链接 Spike 演示
+#### Llama.cpp RISC-V 向量扩展单元测试
+
+```bash
+cd C_src
+make all       # 编译所有单元测试
+make expp      # 运行 BFloat16 exp 计算单元测试
+make softmax   # 运行 Softmax 计算单元测试
+make quant     # 运行 MxFP8 量化单元测试
+make single ARGS=0x3F80  # 运行单值 exp 测试 (输入 1.0)
+```
+
+#### 静态链接 Spike 演示（包含 AI 指令扩展）
 
 ```bash
 cd src/top
 make spike_build  # 构建 Spike 库
-make              # 构建静态链接的 spike-static
-make run          # 运行测试程序（生成 log.txt 日志）
+make              # 构建静态链接的 top-main
+make run          # 运行包含 exp/softmax/quant 指令的测试程序（生成 log.txt 日志）
+```
+
+### 5. 运行特定扩展测试
+
+```bash
+# 运行完整的 AI 指令测试
+cd src/top
+make clean
+make spike_build
+make
+./build/top-main --isa=rv64imafdcv_zicsr_xperia_xperiv -l --log=log.txt --log-commits --instructions=2000 build/firmware/main.elf
+
+# 使用 RISC-V 工具链编译固件
+cd src/top/firmware
+make clean
+make all
 ```
 
 ## 详细构建说明
@@ -156,22 +204,22 @@ Spike 作为子模块位于 `riscv-isa-sim/` 目录。构建过程会自动配�
 - `make spike_build`: 构建 Spike 子模块
 - `make clean_spike`: 清理 Spike 构建
 
-### 静态链接 Spike 构建
+### 静态链接 Spike 构建（AI 指令扩展版本）
 
 `src/top/Makefile` 提供了完整的静态链接构建流程：
 
 **主要目标：**
-- `make all` 或 `make`: 构建静态链接的 `spike-static` 可执行文件
+- `make all` 或 `make`: 构建静态链接的 `top-main` 可执行文件
 - `make spike_build`: 构建并安装 Spike 库
 - `make reconfigure_spike`: 重新配置 Spike 构建
-- `make run`: 运行测试程序（使用完整指令集）
+- `make run`: 运行测试程序（使用完整指令集，包含 AI 指令）
 - `make clean`: 清理生成文件
 - `make clean_spike`: 清理 Spike 构建
 - `make distclean`: 清理所有生成文件
 
 **构建特点：**
-- 将自定义扩展（xperia, xperib, xperiv, xperiv_mul）直接编译到可执行文件中
-- 支持 `--isa=rv64imafdcv_zicsr_xperia_xperiv_xperib_xperivmul` 指令集
+- 将自定义扩展（xperia, xperiv, exp, softmax, quant）直接编译到可执行文件中
+- 支持 `--isa=rv64imafdcv_zicsr_xperia_xperiv` 指令集
 - 无需动态加载扩展库
 - 测试固件自动编译并链接
 
@@ -213,13 +261,21 @@ make           # 构建测试程序 main.elf
    - 操作码：0x2b (CUSTOM1)
    - 功能：向量加法，`vd[i] = vs1[i] + vs2[i]`
 
-3. **XPERIB** - 新增标量扩展，包含 1 条指令 `peri.b.mul`
-   - 操作码：0x4b (CUSTOM2)
-   - 功能：标量乘法，`rd = rs1 * rs2`
-
-4. **XPERIV_MUL** - 新增向量乘法扩展，包含 1 条指令 `peri.v.mul`
+3. **XPERIV_MUL** - 向量乘法扩展，包含 1 条指令 `peri.v.mul`
    - 操作码：0x5b (CUSTOM3)
    - 功能：向量乘法，`vd[i] = vs1[i] * vs2[i]`
+
+4. **EXP** - 向量指数扩展，包含 1 条指令 `exp`
+   - 操作码：0x0b (CUSTOM0), func7=0x03, func3=0x6
+   - 功能：向量 BF16 指数运算，`vd[i] = e^(vs1[i])`
+
+5. **SOFTMAX** - 向量 Softmax 扩展，包含 1 条指令 `softmax`
+   - 操作码：0x0b (CUSTOM0), func7=0x03, func3=0x2
+   - 功能：向量 Softmax 运算，对 vs1 中的值执行 Softmax
+
+6. **QUANT** - 向量量化扩展，包含 1 条指令 `quant`
+   - 操作码：0x0b (CUSTOM0), func7=0x05, func3=0x6
+   - 功能：BF16 到 MXFP8 量化，`vd[i] = quantize(vs1[i])`
 
 ### 扩展开发
 
@@ -236,6 +292,7 @@ make           # 构建测试程序 main.elf
 1. **模块分离**: 每个用例有独立目录，包含完整的构建和测试设施
 2. **头文件管理**: 公共头文件放置在对应目录的根级别
 3. **测试软件**: 每个演示都有对应的测试软件目录 (`sw/`)
+4. **AI 扩展**: 算法实现在 `C_src/riscv/` 中，Spike 扩展在 `src/top/extensions/` 中
 
 ### 构建系统
 
@@ -259,73 +316,83 @@ make           # 构建测试程序 main.elf
 每个演示都包含测试软件：
 - `src/cpp/sw/`: C++ 演示的测试程序
 - `src/systemc/sw/`: SystemC 演示的测试程序
-- `src/top/firmware/`: 静态链接演示的测试固件
+- `src/top/firmware/`: 静态链接演示的测试固件（包含 AI 指令测试）
 - `src/xperimental/xperimental_sw/`: 自定义扩展测试程序
+- `C_src/riscv/`: Llama.cpp AI 扩展单元测试
 
 ### 运行验证
 
 1. **基本功能验证**: 运行演示程序检查是否正确执行
 2. **扩展验证**: 使用 Spike 的 `--extlib` 参数加载自定义扩展
-3. **静态链接验证**: 使用 `spike-static` 运行包含自定义扩展的程序
-4. **日志分析**: 通过 `-l` 和 `--log` 参数生成执行日志（默认生成 `log.txt`）
+3. **静态链接验证**: 使用 `top-main` 运行包含自定义扩展的程序
+4. **AI 指令验证**: 使用 `top-main` 运行包含 exp/softmax/quant 指令的测试程序
+5. **日志分析**: 通过 `-l` 和 `--log` 参数生成执行日志（默认生成 `log.txt`）
 
 ### 调试支持
 
 - **SystemC 调试**: 使用 `--debug` 或 `-d` 参数启用调试输出
 - **远程调试**: 支持远程 bitbang 调试 (`--rbb-port`)
 - **JTAG 接口**: 集成 Spike 的 JTAG DTM 模块
+- **自定义扩展调试**: 扩展实现中包含大量 fprintf 输出用于调试
 
 ## 测试框架和预期结果校验
 
-项目实现了完整的测试框架，用于验证自定义扩展的功能正确性。
+项目实现了完整的测试框架，用于验证自定义扩展的功能正确性，特别针对 AI 推理中的数学运算进行了优化。
 
 ### 测试框架特性
 
 1. **预期结果校验**: 每个自定义指令都有对应的预期结果验证
 2. **错误报告机制**: 通过 `tohost` 机制报告测试失败和错误代码
-3. **全面覆盖**: 支持标量和向量指令的测试
+3. **全面覆盖**: 支持标量、向量及 AI 指令的测试
 4. **自动化验证**: 测试程序自动验证指令执行结果
+5. **AI 精度测试**: 针对 BF16、MXFP8 等 AI 精度进行专门测试
 
 ### 测试错误代码
 
 测试框架定义了以下错误代码：
 - `ERR_XPERIA_ADD (0x10)`: XPERIA 标量加法扩展测试失败
-- `ERR_XPERIB_MUL (0x20)`: XPERIB 标量乘法扩展测试失败  
 - `ERR_XPERIV_ADD (0x30)`: XPERIV 向量加法扩展测试失败
 - `ERR_XPERIV_MUL (0x40)`: XPERIVMUL 向量乘法扩展测试失败
+- `ERR_EXP (0x50)`: EXP 向量指数运算扩展测试失败
+- `ERR_SOFTMAX (0x60)`: SOFTMAX 向量 Softmax 运算扩展测试失败
+- `ERR_QUANT (0x70)`: QUANT 向量量化扩展测试失败
 
 ### 当前测试状态
 
 ✅ **已通过验证的功能**:
 - XPERIA 标量加法扩展 (`peri.a.add`)
-- XPERIB 标量乘法扩展 (`peri.b.mul`)
+- XPERIV 向量加法扩展 (`peri.v.add`)
+- XPERIVMUL 向量乘法扩展 (`peri.v.mul`)
+- EXP 向量指数运算扩展 (`exp`)
+- SOFTMAX 向量 Softmax 运算扩展 (`softmax`)
+- QUANT 向量量化扩展 (`quant`)
 
 🔧 **需要进一步调试的功能**:
-- XPERIV 向量加法扩展 (`peri.v.add`) - 向量扩展可能需额外配置
-- XPERIVMUL 向量乘法扩展 (`peri.v.mul`) - 向量扩展可能需额外配置
+- EXP/softmax/quant 指令的 commit log 显示问题 - 这些指令在执行时不会显示在 commit log 中
 
 ### 运行测试
 
 ```bash
-# 运行完整测试
+# 运行完整测试（包含 AI 指令）
 cd src/top
 make run
 
 # 查看测试日志
 tail -f log.txt
 
-# 仅运行标量指令测试（简化版）
-cd src/top/firmware
-RISCV_PATH=/path/to/riscv/toolchain make -f Makefile.simple  # 如存在
-cd ..
-./spike-static --isa=rv64imafdc_zicsr_xperia_xperib firmware/simple.elf
+# 运行 C_src 中的单元测试
+cd C_src
+make expp          # 运行 exp 单元测试
+make softmax       # 运行 softmax 单元测试
+make quant         # 运行 quant 单元测试
+make single ARGS=0x3F80  # 运行单值 exp 测试 (输入 1.0)
 ```
 
 ### 测试程序结构
 
 测试程序 (`src/top/firmware/main.c`) 包含：
 1. **测试设置**: 初始化测试环境，设置向量扩展
-2. **指令执行**: 执行所有自定义指令
+2. **指令执行**: 执行所有自定义指令（包括 AI 指令）
 3. **结果验证**: 验证每个指令的执行结果
 4. **错误处理**: 报告测试失败并传递错误代码
 5. **成功报告**: 通过 `tohost` 机制报告测试通过
@@ -356,7 +423,12 @@ cd ..
    - 验证依赖库路径设置：`echo $LIBRARY_PATH`
    - 检查编译器版本：`g++ --version`（需要支持 C++17）
 
-5. **module load 命令不可用**
+5. **AI 指令精度问题**
+   - 检查 BFloat16 精度：验证输入输出是否符合预期精度
+   - 查看日志输出：使用 `-l` 和自定义调试输出来调试精度问题
+   - 参考 C_src 中的单元测试验证算法正确性
+
+6. **module load 命令不可用**
    - 手动设置 RISC-V 工具链路径：`export RISCV_PATH=/path/to/riscv/toolchain`
    - 更新 `set-env.sh` 文件，注释掉 `module load` 行
 
@@ -386,8 +458,9 @@ ls riscv-isa-sim/install/bin/spike 2>/dev/null || echo "Spike not installed"
 根据 `require.txt` 的需求，后续开发重点包括：
 1. 理解现有代码架构（已完成）
 2. 实现新的顶层设计，将外部库与 Spike 静态链接（已在 `src/top/` 中实现）
-3. 添加新的指令扩展（已添加 xperib 和 xperiv_mul）
-4. 测试和验证新实现（已实现测试框架，标量指令验证通过）
+3. 添加新的指令扩展（已添加 exp、softmax、quant 指令）
+4. 测试和验证新实现（已实现测试框架，AI 指令验证通过）
+5. 修复新增加指令的 commit_log 问题（待完成）
 
 **注意**: 避免直接修改 `riscv-isa-sim/` 子模块中的代码，应通过外部层级和编译系统扩展功能。`src/top/` 目录展示了如何在不修改 Spike 源代码的情况下实现静态链接集成。
 
@@ -395,20 +468,23 @@ ls riscv-isa-sim/install/bin/spike 2>/dev/null || echo "Spike not installed"
 
 ### 新增功能
 1. **静态链接 Spike 集成** (`src/top/`): 实现了将自定义扩展与 Spike 静态链接的功能
-2. **新增扩展**: 添加了 xperib 和 xperiv_mul 扩展
-3. **改进的构建系统**: 支持静态和动态两种扩展加载方式
-4. **完整测试框架**: 包含预期结果校验和错误报告机制
+2. **AI 指令扩展**: 添加了 exp、softmax、quant 指令用于 AI 推理加速
+3. **C_src 目录**: 包含 Llama.cpp RISC-V 向量扩展的算法实现
+4. **改进的构建系统**: 支持静态和动态两种扩展加载方式
+5. **完整测试框架**: 包含预期结果校验和错误报告机制
 
 ### 使用建议
 - 对于生产环境，推荐使用静态链接方式，避免动态库依赖问题
 - 对于开发和测试，可以使用动态加载方式快速迭代
 - 参考 `src/top/Makefile` 了解如何集成新的扩展
 - 扩展开发时，确保指令编码不与现有指令冲突（使用 CUSTOM0-CUSTOM3 操作码空间）
+- AI 指令参考 `C_src/riscv/` 中的算法实现
 
 ### 已知限制
-- 向量扩展测试可能需要额外的向量长度和配置设置
 - 当前测试固件使用固定内存地址，可能不适用于所有内存布局
 - SystemC 集成需要额外的 SystemC 库安装
+- AI 指令的 commit log 显示问题需进一步调试
+- **TODO**: 修复新增加指令 commit_log 问题，commit log 能显示指令结果的变化，新增加的 quant/softmax 没有显示，需要 debug 修复问题
 
 ## 贡献指南
 
@@ -417,6 +493,7 @@ ls riscv-isa-sim/install/bin/spike 2>/dev/null || echo "Spike not installed"
 3. 更新文档（包括本文件）以反映变更
 4. 确保构建系统向后兼容
 5. 提交前运行现有测试：`cd src/top && make run`
+6. AI 扩展需同时更新 `C_src/` 和 `src/top/extensions/` 中的实现
 
 ## 许可证
 
