@@ -32,7 +32,7 @@
 │   │   ├── memory_simulator.cc # 内存模拟器实现
 │   │   ├── main.cc         # 主程序入口
 │   │   └── Makefile        # 构建配置
-│   ├── static-spike/       # 静态链接 Spike 集成
+│   ├── top/       # 静态链接 Spike 集成
 │   │   ├── extensions/     # 自定义扩展实现
 │   │   │   ├── decode_macros.h
 │   │   │   ├── insn_macros.h
@@ -128,7 +128,7 @@ make demo      # 编译
 #### 静态链接 Spike 演示
 
 ```bash
-cd src/static-spike
+cd src/top
 make spike_build  # 构建 Spike 库
 make              # 构建静态链接的 spike-static
 make run          # 运行测试程序（生成 log.txt 日志）
@@ -158,7 +158,7 @@ Spike 作为子模块位于 `riscv-isa-sim/` 目录。构建过程会自动配�
 
 ### 静态链接 Spike 构建
 
-`src/static-spike/Makefile` 提供了完整的静态链接构建流程：
+`src/top/Makefile` 提供了完整的静态链接构建流程：
 
 **主要目标：**
 - `make all` 或 `make`: 构建静态链接的 `spike-static` 可执行文件
@@ -224,10 +224,10 @@ make           # 构建测试程序 main.elf
 ### 扩展开发
 
 添加自定义扩展时：
-1. 在 `src/static-spike/extensions/` 或 `src/xperimental/xperimental_ext/` 中创建新文件
+1. 在 `src/top/extensions/` 或 `src/xperimental/xperimental_ext/` 中创建新文件
 2. 参考 `xperia.cc` 和 `xperiv.cc` 实现扩展（需实现指令解码、执行和反汇编）
 3. 通过动态库 (`*.so`) 或静态链接方式加载
-4. 提供对应的测试软件（参考 `src/static-spike/firmware/main.c`）
+4. 提供对应的测试软件（参考 `src/top/firmware/main.c`）
 
 ## 开发约定
 
@@ -259,7 +259,7 @@ make           # 构建测试程序 main.elf
 每个演示都包含测试软件：
 - `src/cpp/sw/`: C++ 演示的测试程序
 - `src/systemc/sw/`: SystemC 演示的测试程序
-- `src/static-spike/firmware/`: 静态链接演示的测试固件
+- `src/top/firmware/`: 静态链接演示的测试固件
 - `src/xperimental/xperimental_sw/`: 自定义扩展测试程序
 
 ### 运行验证
@@ -308,14 +308,14 @@ make           # 构建测试程序 main.elf
 
 ```bash
 # 运行完整测试
-cd src/static-spike
+cd src/top
 make run
 
 # 查看测试日志
 tail -f log.txt
 
 # 仅运行标量指令测试（简化版）
-cd src/static-spike/firmware
+cd src/top/firmware
 RISCV_PATH=/path/to/riscv/toolchain make -f Makefile.simple  # 如存在
 cd ..
 ./spike-static --isa=rv64imafdc_zicsr_xperia_xperib firmware/simple.elf
@@ -323,7 +323,7 @@ cd ..
 
 ### 测试程序结构
 
-测试程序 (`src/static-spike/firmware/main.c`) 包含：
+测试程序 (`src/top/firmware/main.c`) 包含：
 1. **测试设置**: 初始化测试环境，设置向量扩展
 2. **指令执行**: 执行所有自定义指令
 3. **结果验证**: 验证每个指令的执行结果
@@ -352,7 +352,7 @@ cd ..
 
 4. **静态链接构建失败**
    - 确保 Spike 库已正确构建和安装：`make spike_build`
-   - 检查扩展文件路径和编译选项：`ls src/static-spike/extensions/`
+   - 检查扩展文件路径和编译选项：`ls src/top/extensions/`
    - 验证依赖库路径设置：`echo $LIBRARY_PATH`
    - 检查编译器版本：`g++ --version`（需要支持 C++17）
 
@@ -385,16 +385,16 @@ ls riscv-isa-sim/install/bin/spike 2>/dev/null || echo "Spike not installed"
 
 根据 `require.txt` 的需求，后续开发重点包括：
 1. 理解现有代码架构（已完成）
-2. 实现新的顶层设计，将外部库与 Spike 静态链接（已在 `src/static-spike/` 中实现）
+2. 实现新的顶层设计，将外部库与 Spike 静态链接（已在 `src/top/` 中实现）
 3. 添加新的指令扩展（已添加 xperib 和 xperiv_mul）
 4. 测试和验证新实现（已实现测试框架，标量指令验证通过）
 
-**注意**: 避免直接修改 `riscv-isa-sim/` 子模块中的代码，应通过外部层级和编译系统扩展功能。`src/static-spike/` 目录展示了如何在不修改 Spike 源代码的情况下实现静态链接集成。
+**注意**: 避免直接修改 `riscv-isa-sim/` 子模块中的代码，应通过外部层级和编译系统扩展功能。`src/top/` 目录展示了如何在不修改 Spike 源代码的情况下实现静态链接集成。
 
 ## 版本更新说明
 
 ### 新增功能
-1. **静态链接 Spike 集成** (`src/static-spike/`): 实现了将自定义扩展与 Spike 静态链接的功能
+1. **静态链接 Spike 集成** (`src/top/`): 实现了将自定义扩展与 Spike 静态链接的功能
 2. **新增扩展**: 添加了 xperib 和 xperiv_mul 扩展
 3. **改进的构建系统**: 支持静态和动态两种扩展加载方式
 4. **完整测试框架**: 包含预期结果校验和错误报告机制
@@ -402,7 +402,7 @@ ls riscv-isa-sim/install/bin/spike 2>/dev/null || echo "Spike not installed"
 ### 使用建议
 - 对于生产环境，推荐使用静态链接方式，避免动态库依赖问题
 - 对于开发和测试，可以使用动态加载方式快速迭代
-- 参考 `src/static-spike/Makefile` 了解如何集成新的扩展
+- 参考 `src/top/Makefile` 了解如何集成新的扩展
 - 扩展开发时，确保指令编码不与现有指令冲突（使用 CUSTOM0-CUSTOM3 操作码空间）
 
 ### 已知限制
@@ -416,7 +416,7 @@ ls riscv-isa-sim/install/bin/spike 2>/dev/null || echo "Spike not installed"
 2. 添加新扩展时，提供对应的测试程序
 3. 更新文档（包括本文件）以反映变更
 4. 确保构建系统向后兼容
-5. 提交前运行现有测试：`cd src/static-spike && make run`
+5. 提交前运行现有测试：`cd src/top && make run`
 
 ## 许可证
 

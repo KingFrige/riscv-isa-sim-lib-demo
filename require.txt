@@ -8,11 +8,11 @@
 - [x] 添加exp/softmax/quant三条指令
 - [x] 指令编码参考 docs/insn-decode.jpg, docs/insn.jpg
 - [x] 内部实现已经在C_src中，要求按照之前添加指令的方式添加新的指令框架，使用C_src中的process()替换实现
-- [x] 实现要求将C_src中的代码复制到static-spike，不可依赖C_src目录
+- [x] 实现要求将C_src中的代码复制到top，不可依赖C_src目录
 - [x] 添加测试，提取C_src中对应main函数中的测试方法到测试函数中
+- [x] firmware中修复每个测试的vsetvli, 将这段代码提取到函数，每个测试独立配置自己的e32/e16
 
 
 ## TODO
 
-- [ ] firmware中修复每个测试的vsetvli, 将这段代码提取到函数，每个测试独立配置自己的e32/e16
 - [ ] 修复新增加指令commit_log问题，commit log能显示指令结果的变化，新增加的quant/softmax没有显示，debug修复问题

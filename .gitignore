@@ -15,5 +15,4 @@ src/sw/start.o
 *.lst
 tags
 log.txt
-src/static-spike/spike-static
 build/
