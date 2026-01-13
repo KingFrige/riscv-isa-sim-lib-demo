@@ -84,8 +84,8 @@ static reg_t peri_v_mul_impl(processor_t* p, insn_t insn, reg_t pc)
 // ============================================================================
 static reg_t exp_impl(processor_t* p, insn_t insn, reg_t pc)
 {
-  fprintf(stderr, "xperiv: exp_impl called! vd=%lu, vs1=%lu, vs2=%lu\n", 
-          insn.rd(), insn.rs1(), insn.rs2());
+  fprintf(stderr, "xperiv: exp_impl called! vd=%lu, vs1=%lu\n", 
+          insn.rd(), insn.rs1());
   
   // Get vector length
   auto vlen = p->VU.get_vlen() / 8;
@@ -99,15 +99,29 @@ static reg_t exp_impl(processor_t* p, insn_t insn, reg_t pc)
   // Create BF16ExppUnit_Model instance
   BF16ExppUnit_Model exp_unit;
   
-  VI_VV_LOOP
-  ({
-    // Input is BF16 value in vs1 (lower 16 bits)
-    uint16_t input = vs1 & 0xFFFF;
-    uint16_t result = exp_unit.process(input);
-    vd = result;  // Store BF16 result in lower 16 bits
+  // Check for source/destination overlap
+  if (insn.rd() != insn.rs1()) {
+    require_noover(insn.rd(), 1, insn.rs1(), 1);
+  }
+  
+  // Get the vector length
+  reg_t vl = p->VU.vl->read();
+  reg_t sew = p->VU.vsew;
+  
+  fprintf(stderr, "xperiv: exp actual processing - vl=%lu, sew=%lu\n", vl, sew);
+  
+  // Process based on the configured SEW (element width)
+  for (reg_t i = 0; i < vl; ++i) {
+    // Always read as 16-bit BF16 value, regardless of configured SEW
+    uint16_t vs1 = p->VU.elt<uint16_t>(insn.rs1(), i);
+    uint16_t result = exp_unit.process(vs1);
+    // Store result back as 16-bit value
+    uint16_t &vd = p->VU.elt<uint16_t>(insn.rd(), i, true);
+    vd = result;
     fprintf(stderr, "xperiv: exp vd[%lu] = exp(vs1[%lu]) = 0x%04x -> 0x%04x\n",
-            i, i, input, result);
-  })
+            i, i, vs1, result);
+  }
+  
   fprintf(stderr, "xperiv: exp_impl returning\n");
   return pc + 4;
 }
@@ -117,8 +131,8 @@ static reg_t exp_impl(processor_t* p, insn_t insn, reg_t pc)
 // ============================================================================
 static reg_t softmax_impl(processor_t* p, insn_t insn, reg_t pc)
 {
-  fprintf(stderr, "xperiv: softmax_impl called! vd=%lu, vs1=%lu, vs2=%lu\n", 
-          insn.rd(), insn.rs1(), insn.rs2());
+  fprintf(stderr, "xperiv: softmax_impl called! vd=%lu, vs1=%lu\n", 
+          insn.rd(), insn.rs1());
   
   // Get vector length
   auto vlen = p->VU.get_vlen() / 8;
@@ -129,25 +143,27 @@ static reg_t softmax_impl(processor_t* p, insn_t insn, reg_t pc)
   // Initialize BF16 LUTs
   BF16::init_luts();
   
-  // Collect input values from vs1 vector
+  // Collect input values from vs1 vector as 16-bit BF16 values
   std::vector<uint16_t> input_values;
-  for (size_t i = 0; i < current_vl; i++) {
-    // Read vs1 element (16-bit BF16 value)
+  reg_t vl = p->VU.vl->read();
+  for (size_t i = 0; i < vl; i++) {
+    // Always read as 16-bit BF16 value, regardless of configured SEW
     uint16_t val = p->VU.elt<uint16_t>(insn.rs1(), i);
     input_values.push_back(val);
+    fprintf(stderr, "xperiv: softmax input[%lu] = 0x%04x\n", i, val);
   }
   
   // Create SoftmaxCore_Model instance
-  SoftmaxCore_Model softmax_model(current_vl);
+  SoftmaxCore_Model softmax_model(vl);
   
-  // Prepare input as 2D vector (single row)
+  // Prepare input as 2D vector (single row, as expected by the process function)
   std::vector<std::vector<uint16_t>> input_row = {input_values};
   
   // Process softmax
   SoftmaxResult result = softmax_model.process(input_row);
   
-  // Store results back to vd vector
-  for (size_t i = 0; i < current_vl; i++) {
+  // Store results back to vd vector as 16-bit values
+  for (size_t i = 0; i < vl; i++) {
     uint16_t output_val = result.final_output[0][i];
     // Use the write function that properly logs to commit log
     auto& vd_reg = p->VU.elt<uint16_t>(insn.rd(), i, true);
@@ -164,8 +180,8 @@ static reg_t softmax_impl(processor_t* p, insn_t insn, reg_t pc)
 // ============================================================================
 static reg_t quant_impl(processor_t* p, insn_t insn, reg_t pc)
 {
-  fprintf(stderr, "xperiv: quant_impl called! vd=%lu, vs1=%lu, vs2=%lu\n", 
-          insn.rd(), insn.rs1(), insn.rs2());
+  fprintf(stderr, "xperiv: quant_impl called! vd=%lu, vs1=%lu\n", 
+          insn.rd(), insn.rs1());
   
   // Get vector length
   auto vlen = p->VU.get_vlen() / 8;
@@ -176,26 +192,28 @@ static reg_t quant_impl(processor_t* p, insn_t insn, reg_t pc)
   // Initialize BF16 LUTs
   BF16::init_luts();
   
-  // Collect input values from vs1 vector
+  // Collect input values from vs1 vector as 16-bit BF16 values
   std::vector<uint16_t> input_values;
-  for (size_t i = 0; i < current_vl; i++) {
+  reg_t vl = p->VU.vl->read();
+  for (size_t i = 0; i < vl; i++) {
+    // Always read as 16-bit BF16 value, regardless of configured SEW
     uint16_t val = p->VU.elt<uint16_t>(insn.rs1(), i);
     input_values.push_back(val);
+    fprintf(stderr, "xperiv: quant input[%lu] = 0x%04x\n", i, val);
   }
   
   // Create MxFp8ActQuant_Model instance
-  MxFp8ActQuant_Model quant_model(current_vl);
+  MxFp8ActQuant_Model quant_model(vl);
   
   // Process quantization
   quant_model.process(input_values.data());
   
-  // Store results back to vd vector (8-bit values in 16-bit elements)
-  for (size_t i = 0; i < current_vl; i++) {
+  // Store results back to vd vector (8-bit values in lower 8 bits of 16-bit elements)
+  for (size_t i = 0; i < vl; i++) {
     uint8_t quantized = quant_model.o_MxFp8Act[i];
-    // Store 8-bit value in 16-bit element (upper 8 bits are zero)
-    // Use the write function that properly logs to commit log
+    // Store 8-bit value in lower 8 bits of 16-bit element (upper 8 bits are zero)
     auto& vd_reg = p->VU.elt<uint16_t>(insn.rd(), i, true);
-    vd_reg = quantized;
+    vd_reg = quantized;  // Implicitly sets upper 8 bits to 0
     fprintf(stderr, "xperiv: quant vd[%lu] = 0x%02x\n", i, quantized);
   }
   

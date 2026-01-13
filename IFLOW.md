@@ -16,7 +16,7 @@
 
 - **核心模拟器**: RISC-V ISA Simulator (Spike)
 - **编程语言**: C++ (主程序), C (测试软件), SystemC (系统级建模), RISC-V 汇编
-- **构建系统**: GNU Make, Autotools (Spike 子模块)
+- **构建系统**: GNU Make, Autotools (Spike 子模块), Consolidated build script (`build_all.sh`)
 - **仿真环境**: SystemC 2.3+ (可选)
 - **工具链**: RISC-V GNU 工具链 (需支持 rv64imafdcv 架构)
 - **AI 推理**: 集成 BFloat16、MxFP8 等 AI 精度处理
@@ -25,6 +25,11 @@
 
 ```
 .
+├── build/                  # 统一构建输出目录
+│   ├── firmware/           # 固件构建输出
+│   ├── spike/              # Spike 构建输出
+│   ├── spike-install/      # Spike 安装目录
+│   └── top/                # top wrapper 构建输出
 ├── riscv-isa-sim/          # Spike 子模块 (RISC-V ISA 模拟器)
 ├── C_src/                  # Llama.cpp RISC-V 向量扩展实现
 │   ├── config.h            # 配置文件
@@ -71,24 +76,27 @@
 │   │   ├── spike_main.cc   # 自定义 Spike 主程序
 │   │   ├── Makefile        # 静态链接构建配置
 │   │   └── build/          # 构建输出目录
-│   ├── systemc/            # SystemC 集成
-│   │   ├── memory/         # 内存模型
-│   │   ├── turbo/          # 处理器核心包装器
-│   │   ├── uncore/         # 非核心逻辑
-│   │   ├── util/           # 工具函数
-│   │   ├── sw/             # 测试软件
-│   │   ├── sc_main.cpp     # SystemC 主程序
-│   │   ├── Makefile        # 构建配置
-│   │   └── README.md       # 详细使用说明
-│   └── xperimental/        # 自定义扩展实验
-│       ├── xperimental_ext/ # 扩展实现 (.so 动态库)
-│       ├── xperimental_sw/  # 测试软件
-│       └── README.md        # 扩展使用指南
+├── src/systemc/            # SystemC 集成
+│   ├── memory/             # 内存模型
+│   ├── turbo/              # 处理器核心包装器
+│   ├── uncore/             # 非核心逻辑
+│   ├── util/               # 工具函数
+│   ├── sw/                 # 测试软件
+│   ├── sc_main.cpp         # SystemC 主程序
+│   ├── Makefile            # 构建配置
+│   └── README.md           # 详细使用说明
+├── src/xperimental/        # 自定义扩展实验
+│   ├── xperimental_ext/    # 扩展实现 (.so 动态库)
+│   ├── xperimental_sw/     # 测试软件
+│   └── README.md           # 扩展使用指南
+├── build_all.sh            # 统一构建脚本
 ├── build-spike.sh          # 构建 Spike 脚本
 ├── set-env.sh              # 环境变量设置脚本
 ├── require.txt             # 项目需求说明
 ├── README.md               # 项目总览
 ├── IFLOW.md                # 项目文档
+├── run_log_after_simplify.txt # 运行日志
+├── test_error.c            # 测试错误文件
 └── .gitmodules             # Git 子模块配置
 ```
 
@@ -105,14 +113,7 @@ cd riscv-isa-sim-lib-demo
 git submodule update --init --recursive
 ```
 
-### 2. 构建 Spike
-
-```bash
-# 运行构建脚本
-bash build-spike.sh
-```
-
-### 3. 设置环境变量
+### 2. 设置环境变量
 
 ```bash
 # 设置 Spike 路径和环境变量
@@ -120,6 +121,22 @@ source set-env.sh
 
 # 注意：set-env.sh 中包含 module load 命令，仅在支持 module 的环境中使用
 # 若不可用，请手动设置 RISCV_PATH 等环境变量
+```
+
+### 3. 构建项目
+
+```bash
+# 使用统一构建脚本（推荐）
+bash build_all.sh
+
+# 或者只构建和运行测试
+bash build_all.sh --run-tests
+
+# 构建特定组件
+bash build_all.sh --spike      # 仅构建 Spike
+bash build_all.sh --firmware   # 仅构建固件
+bash build_all.sh --top        # 仅构建顶层包装器
+bash build_all.sh --clean      # 清理构建目录
 ```
 
 ### 4. 运行演示程序
@@ -160,6 +177,10 @@ make single ARGS=0x3F80  # 运行单值 exp 测试 (输入 1.0)
 #### 静态链接 Spike 演示（包含 AI 指令扩展）
 
 ```bash
+# 使用统一构建脚本
+bash build_all.sh --run-tests
+
+# 或者手动构建
 cd src/top
 make spike_build  # 构建 Spike 库
 make              # 构建静态链接的 top-main
@@ -184,9 +205,29 @@ make all
 
 ## 详细构建说明
 
+### 统一构建系统
+
+项目现在使用 `build_all.sh` 作为统一的构建脚本，将所有构建输出集中到 `build/` 目录下。该脚本支持以下功能：
+
+- 构建 Spike 模拟器
+- 构建固件
+- 构建顶层包装器
+- 运行测试
+- 管理构建依赖
+
+**主要命令：**
+- `bash build_all.sh` - 构建所有组件并运行测试
+- `bash build_all.sh --all` - 构建所有组件并运行测试
+- `bash build_all.sh --run-tests` - 构建并运行测试
+- `bash build_all.sh --clean` - 清理构建目录
+- `bash build_all.sh --spike` - 仅构建 Spike
+- `bash build_all.sh --firmware` - 仅构建固件
+- `bash build_all.sh --top` - 仅构建顶层包装器
+- `bash build_all.sh --help` - 显示帮助信息
+
 ### Spike 构建配置
 
-Spike 作为子模块位于 `riscv-isa-sim/` 目录。构建过程会自动配置和安装到 `riscv-isa-sim/install/`。
+Spike 作为子模块位于 `riscv-isa-sim/` 目录。构建过程会自动配置和安装到 `build/spike-install/`。
 
 关键环境变量（通过 `set-env.sh` 设置）：
 - `SPIKE_INSTALL_DIR`: Spike 安装目录
@@ -282,7 +323,7 @@ make           # 构建测试程序 main.elf
 添加自定义扩展时：
 1. 在 `src/top/extensions/` 或 `src/xperimental/xperimental_ext/` 中创建新文件
 2. 参考 `xperia.cc` 和 `xperiv.cc` 实现扩展（需实现指令解码、执行和反汇编）
-3. 通过动态库 (`*.so`) 或静态链接方式加载
+3. 通过静态链接方式加载
 4. 提供对应的测试软件（参考 `src/top/firmware/main.c`）
 
 ## 开发约定
@@ -296,7 +337,8 @@ make           # 构建测试程序 main.elf
 
 ### 构建系统
 
-- 使用 Makefile 管理构建过程
+- 使用 `build_all.sh` 统一管理构建过程
+- 输出集中到 `build/` 目录
 - 支持环境变量覆盖配置
 - 提供 `clean` 目标确保可重复构建
 - Spike 构建通过子模块和自动化脚本管理
@@ -306,8 +348,9 @@ make           # 构建测试程序 main.elf
 添加自定义扩展时：
 1. 在 `src/xperimental/` 中创建新目录
 2. 参考 `xperia.cc` 和 `xperiv.cc` 实现扩展
-3. 通过动态库 (`*.so`) 方式加载
+3. 通过静态链接方式加载
 4. 提供对应的测试软件
+5. 将 C_src 中的算法实现复制到扩展目录，避免外部依赖
 
 ## 测试和验证
 
@@ -346,6 +389,7 @@ make           # 构建测试程序 main.elf
 3. **全面覆盖**: 支持标量、向量及 AI 指令的测试
 4. **自动化验证**: 测试程序自动验证指令执行结果
 5. **AI 精度测试**: 针对 BF16、MXFP8 等 AI 精度进行专门测试
+6. **LMUL 测试**: 针对不同向量长度乘数（1/2/4/8）进行测试
 
 ### 测试错误代码
 
@@ -367,18 +411,23 @@ make           # 构建测试程序 main.elf
 - SOFTMAX 向量 Softmax 运算扩展 (`softmax`)
 - QUANT 向量量化扩展 (`quant`)
 
-🔧 **需要进一步调试的功能**:
-- EXP/softmax/quant 指令的 commit log 显示问题 - 这些指令在执行时不会显示在 commit log 中
+🔧 **已修复的问题**:
+- EXP/softmax/quant 指令的 commit log 显示问题 - 已通过改进扩展实现修复
+- 提升了 LMUL (1/2/4/8) 不同配置下的测试覆盖
 
 ### 运行测试
 
 ```bash
 # 运行完整测试（包含 AI 指令）
+bash build_all.sh --run-tests
+
+# 或者手动运行
 cd src/top
 make run
 
 # 查看测试日志
 tail -f log.txt
+cat build/log.txt  # 当使用 build_all.sh 时
 
 # 运行 C_src 中的单元测试
 cd C_src
@@ -393,9 +442,10 @@ make single ARGS=0x3F80  # 运行单值 exp 测试 (输入 1.0)
 测试程序 (`src/top/firmware/main.c`) 包含：
 1. **测试设置**: 初始化测试环境，设置向量扩展
 2. **指令执行**: 执行所有自定义指令（包括 AI 指令）
-3. **结果验证**: 验证每个指令的执行结果
-4. **错误处理**: 报告测试失败并传递错误代码
-5. **成功报告**: 通过 `tohost` 机制报告测试通过
+3. **LMUL 配置**: 针对不同长度乘数 (1/2/4/8) 的测试
+4. **结果验证**: 验证每个指令的执行结果
+5. **错误处理**: 报告测试失败并传递错误代码
+6. **成功报告**: 通过 `tohost` 机制报告测试通过
 
 ## 故障排除
 
@@ -409,8 +459,8 @@ make single ARGS=0x3F80  # 运行单值 exp 测试 (输入 1.0)
 
 2. **库加载错误**
    - 确保 `LD_LIBRARY_PATH` 正确设置：`echo $LD_LIBRARY_PATH`
-   - 检查动态库路径和权限：`ls -la riscv-isa-sim/install/lib/`
-   - 验证 Spike 是否正确安装：`ls riscv-isa-sim/install/bin/spike`
+   - 检查动态库路径和权限：`ls -la build/spike-install/lib/`
+   - 验证 Spike 是否正确安装：`ls build/spike-install/bin/spike`
 
 3. **SystemC 链接错误**
    - 验证 `SYSTEMC_INCLUDE` 和 `SYSTEMC_LIBDIR` 环境变量
@@ -418,7 +468,7 @@ make single ARGS=0x3F80  # 运行单值 exp 测试 (输入 1.0)
    - 确认 SystemC 库是否编译为共享库
 
 4. **静态链接构建失败**
-   - 确保 Spike 库已正确构建和安装：`make spike_build`
+   - 确保 Spike 库已正确构建和安装：`bash build_all.sh --spike`
    - 检查扩展文件路径和编译选项：`ls src/top/extensions/`
    - 验证依赖库路径设置：`echo $LIBRARY_PATH`
    - 检查编译器版本：`g++ --version`（需要支持 C++17）
@@ -443,39 +493,48 @@ spike --version
 # 检查库路径
 echo $LD_LIBRARY_PATH
 
-# 检查 SystemC 安装
-ls $SYSTEMC_INCLUDE/systemc.h 2>/dev/null || echo "SystemC not found"
-
 # 检查 RISC-V 工具链
 which riscv64-unknown-elf-gcc
 
 # 检查 Spike 安装
-ls riscv-isa-sim/install/bin/spike 2>/dev/null || echo "Spike not installed"
+ls build/spike-install/bin/spike 2>/dev/null || echo "Spike not installed"
 ```
 
 ## 后续开发
 
-根据 `require.txt` 的需求，后续开发重点包括：
-1. 理解现有代码架构（已完成）
-2. 实现新的顶层设计，将外部库与 Spike 静态链接（已在 `src/top/` 中实现）
-3. 添加新的指令扩展（已添加 exp、softmax、quant 指令）
-4. 测试和验证新实现（已实现测试框架，AI 指令验证通过）
-5. 修复新增加指令的 commit_log 问题（待完成）
+根据 `require.txt` 的需求，已完成以下开发重点：
+1. ✅ 理解现有代码架构
+2. ✅ 实现新的顶层设计，将外部库与 Spike 静态链接（已在 `src/top/` 中实现）
+3. ✅ 添加新的指令扩展（已添加 exp、softmax、quant 指令）
+4. ✅ 测试和验证新实现（已实现测试框架，AI 指令验证通过）
+5. ✅ 修复新增加指令的 commit_log 问题（已修复）
+6. ✅ 整合构建系统到 `build_all.sh`（已实现）
+7. ✅ 输出文件到 `build/` 目录（已实现）
+8. ✅ 修复一元操作的打印问题（已修复）
+9. ✅ 增加更多测试用例（已添加 LMUL 测试）
 
 **注意**: 避免直接修改 `riscv-isa-sim/` 子模块中的代码，应通过外部层级和编译系统扩展功能。`src/top/` 目录展示了如何在不修改 Spike 源代码的情况下实现静态链接集成。
 
 ## 版本更新说明
 
 ### 新增功能
-1. **静态链接 Spike 集成** (`src/top/`): 实现了将自定义扩展与 Spike 静态链接的功能
-2. **AI 指令扩展**: 添加了 exp、softmax、quant 指令用于 AI 推理加速
-3. **C_src 目录**: 包含 Llama.cpp RISC-V 向量扩展的算法实现
-4. **改进的构建系统**: 支持静态和动态两种扩展加载方式
-5. **完整测试框架**: 包含预期结果校验和错误报告机制
+1. **统一构建系统** (`build_all.sh`): 集中化构建流程，输出到 `build/` 目录
+2. **静态链接 Spike 集成** (`src/top/`): 实现了将自定义扩展与 Spike 静态链接的功能
+3. **AI 指令扩展**: 添加了 exp、softmax、quant 指令用于 AI 推理加速
+4. **C_src 目录**: 包含 Llama.cpp RISC-V 向量扩展的算法实现
+5. **改进的构建系统**: 支持静态链接方式，避免动态库依赖问题
+6. **完整测试框架**: 包含预期结果校验和错误报告机制
+7. **LMUL 测试覆盖**: 增加了对不同向量长度乘数 (1/2/4/8) 的测试
+
+### 修复改进
+1. **Commit Log 问题**: 修复了 EXP/softmax/quant 指令在日志中不显示的问题
+2. **指令打印格式**: 修复了一元操作指令（如 quant, exp）的打印格式
+3. **算法集成**: 将 C_src 中的算法实现直接集成到扩展中
+4. **测试验证**: 增强了测试用例，包括不同 LMUL 配置下的验证
 
 ### 使用建议
-- 对于生产环境，推荐使用静态链接方式，避免动态库依赖问题
-- 对于开发和测试，可以使用动态加载方式快速迭代
+- 对于生产环境，推荐使用 `build_all.sh` 统一构建系统
+- 对于开发和测试，可以使用 `bash build_all.sh --run-tests` 快速验证
 - 参考 `src/top/Makefile` 了解如何集成新的扩展
 - 扩展开发时，确保指令编码不与现有指令冲突（使用 CUSTOM0-CUSTOM3 操作码空间）
 - AI 指令参考 `C_src/riscv/` 中的算法实现
@@ -483,8 +542,6 @@ ls riscv-isa-sim/install/bin/spike 2>/dev/null || echo "Spike not installed"
 ### 已知限制
 - 当前测试固件使用固定内存地址，可能不适用于所有内存布局
 - SystemC 集成需要额外的 SystemC 库安装
-- AI 指令的 commit log 显示问题需进一步调试
-- **TODO**: 修复新增加指令 commit_log 问题，commit log 能显示指令结果的变化，新增加的 quant/softmax 没有显示，需要 debug 修复问题
 
 ## 贡献指南
 
@@ -492,8 +549,9 @@ ls riscv-isa-sim/install/bin/spike 2>/dev/null || echo "Spike not installed"
 2. 添加新扩展时，提供对应的测试程序
 3. 更新文档（包括本文件）以反映变更
 4. 确保构建系统向后兼容
-5. 提交前运行现有测试：`cd src/top && make run`
+5. 提交前运行现有测试：`bash build_all.sh --run-tests`
 6. AI 扩展需同时更新 `C_src/` 和 `src/top/extensions/` 中的实现
+7. 确保新的扩展指令正确记录到 commit log 中
 
 ## 许可证
 
