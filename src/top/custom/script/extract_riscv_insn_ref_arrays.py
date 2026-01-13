@@ -13,30 +13,34 @@ def extract_softmax_arrays(file_path: str) -> Tuple[List[str], List[str]]:
     with open(file_path, 'r') as f:
         content = f.read()
     
-    # 使用正则表达式匹配 Softmax Input/Output Table 部分的数据
+    # 使用正则表达式匹配所有的 Softmax Input/Output Table 部分
     table_pattern = r"Softmax Input/Output Table:[\s\S]*?-{5,}\n([\s\S]*?)\n\s*Sum check:"
-    match = re.search(table_pattern, content)
+    matches = re.findall(table_pattern, content)
     
-    if not match:
+    if not matches:
         print(f"未在 {file_path} 中找到 Softmax Input/Output Table")
         return [], []
     
-    table_content = match.group(1)
+    print(f"在 {file_path} 中找到 {len(matches)} 个表格")
     
     input_bf16_values = []
     output_bf16_values = []
     
-    # 匹配表格中的数据行
-    lines = table_content.split('\n')
-    for line in lines:
-        # 匹配格式: "  0 |   0xbf2a    |  -6.640625e-01  |   0x3d09    | 0.03344727"
-        pattern = r'\s*\d+\s*\|\s*(0x[0-9a-fA-F]+)\s*\|.*?\|\s*(0x[0-9a-fA-F]+)\s*\|'
-        match = re.search(pattern, line)
-        if match:
-            input_bf16 = match.group(1)
-            output_bf16 = match.group(2)
-            input_bf16_values.append(input_bf16)
-            output_bf16_values.append(output_bf16)
+    # 处理每个表格部分
+    for i, table_content in enumerate(matches):
+        print(f"处理第 {i+1} 个表格，内容长度: {len(table_content)} 字符")
+        
+        # 匹配表格中的数据行
+        lines = table_content.split('\n')
+        for line in lines:
+            # 匹配格式: "  0 |   0xbf2a    |  -6.640625e-01  |   0x3d09    | 0.03344727"
+            pattern = r'\s*\d+\s*\|\s*(0x[0-9a-fA-F]+)\s*\|.*?\|\s*(0x[0-9a-fA-F]+)\s*\|'
+            match = re.search(pattern, line)
+            if match:
+                input_bf16 = match.group(1)
+                output_bf16 = match.group(2)
+                input_bf16_values.append(input_bf16)
+                output_bf16_values.append(output_bf16)
     
     return input_bf16_values, output_bf16_values
 
@@ -76,11 +80,12 @@ def extract_quant_arrays(file_path: str) -> Tuple[List[str], List[str]]:
     lines = content.split('\n')
     for line in lines:
         # 匹配格式: "    0 | 0x0000(+0.000e+00) |   0x00   | +0.000000e+00   |     0.00% |   0x00    | +0.000000e+00   |    0.00%"
-        pattern = r'\s*\d+\s*\|\s*(0x[0-9a-fA-F]+)\([^)]*\)\s*\|.*?\|.*?\|.*?\|\s*(0x[0-9a-fA-F]+)\s*\|'
+        # 提取 BF16_Input (第一个0x值) 和 HW_Quant (第二个0x值)
+        pattern = r'\s*\d+\s*\|\s*(0x[0-9a-fA-F]+)\([^)]*\)\s*\|\s*(0x[0-9a-fA-F]+)\s*\|'
         match = re.search(pattern, line)
         if match:
-            input_bf16 = match.group(1)
-            output_bf16 = match.group(2)
+            input_bf16 = match.group(1)  # BF16_Input
+            output_bf16 = match.group(2)  # HW_Quant
             input_bf16_values.append(input_bf16)
             output_bf16_values.append(output_bf16)
     
@@ -97,7 +102,7 @@ def calculate_group_size(file_path: str) -> int:
     
     if match:
         m_value = int(match.group(1))
-        group_size = 32 << (m_value - 1)  # 32 * 2^(m_value-1)
+        group_size = 32 * m_value  # 32 * m_value (m1=32, m2=64, m4=128, m8=256, m16=512)
     else:
         # 默认为 m1，即 32 个元素一组
         group_size = 32
@@ -149,8 +154,12 @@ def process_softmax_files_c_format():
         # 提取文件名基础部分（去掉路径和扩展名）
         base_filename = os.path.splitext(os.path.basename(file))[0]
         
+        # 根据组的数量动态决定打印多少组，避免输出过大的问题
+        num_to_print = min(20, len(input_groups))  # 打印前10组数据（如果有的话）
+        
         # 输出 C 语言格式的数组
-        print_c_array_for_all_groups(input_groups, output_groups, base_filename, 2)
+        for i in range(num_to_print):
+            print_c_array(input_groups, output_groups, base_filename, i)
         print()
 
 
@@ -171,8 +180,14 @@ def process_expp_file_c_format():
         input_groups, output_groups = group_arrays(input_bf16, output_bf16, group_size)
         print(f"分成了 {len(input_groups)} 组")
         
+        # 根据组的数量动态决定打印多少组，避免输出过大的问题
+        # 对于大量组的情况，打印更多组（最多100组）
+        num_to_print = min(20, len(input_groups))
+        print(f"打印前 {num_to_print} 组数据：")
+        
         # 输出 C 语言格式的数组
-        print_c_array_for_all_groups(input_groups, output_groups, 'expp', 2)
+        for i in range(num_to_print):
+            print_c_array(input_groups, output_groups, 'expp', i)
         print()
 
 
@@ -193,8 +208,14 @@ def process_quant_file_c_format():
         input_groups, output_groups = group_arrays(input_bf16, output_bf16, group_size)
         print(f"分成了 {len(input_groups)} 组")
         
+        # 根据组的数量动态决定打印多少组，避免输出过大的问题
+        # 对于大量组的情况，打印更多组（最多100组）
+        num_to_print = min(20, len(input_groups))
+        print(f"打印前 {num_to_print} 组数据：")
+        
         # 输出 C 语言格式的数组
-        print_c_array_for_all_groups(input_groups, output_groups, 'quant', 2)
+        for i in range(num_to_print):
+            print_c_array(input_groups, output_groups, 'quant', i)
         print()
 
 
@@ -211,8 +232,10 @@ def print_c_array(input_groups: List[List[str]], output_groups: List[List[str]],
             print(f"    {val}", end="")
         else:
             print(f", {val}", end="")
-        if (i + 1) % 8 == 0:
+        if (i + 1) == len(input_group):
             print()  # 换行
+        elif (i + 1) % 8 == 0:
+            print(",")  # 换行
     if len(input_group) % 8 != 0:
         print()  # 如果最后一行不足8个元素，换行
     print("};")
@@ -223,8 +246,10 @@ def print_c_array(input_groups: List[List[str]], output_groups: List[List[str]],
             print(f"    {val}", end="")
         else:
             print(f", {val}", end="")
-        if (i + 1) % 8 == 0:
+        if (i + 1) == len(input_group):
             print()  # 换行
+        elif (i + 1) % 8 == 0:
+            print(",")  # 换行
     if len(output_group) % 8 != 0:
         print()  # 如果最后一行不足8个元素，换行
     print("};")

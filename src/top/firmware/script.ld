@@ -26,6 +26,7 @@ SECTIONS {
     *(.vector_data_v6)
   }
   
-  . = ALIGN(0x1000);
+  /* Place tohost section after other sections to avoid overlap */
+  . = 0x80006000;
   .tohost : { *(.tohost) }
 }
