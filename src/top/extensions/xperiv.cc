@@ -8,10 +8,10 @@
 #include "v_ext_macros.h"
 
 // Include C_src algorithm headers
-#include "BF16.hpp"
-#include "custom_expp.hpp"
-#include "SoftmaxCore.hpp"
-#include "MxFp8ActQuant.hpp"
+#include "../custom/riscv/BF16.hpp"
+#include "../custom/riscv/custom_expp.hpp"
+#include "../custom/riscv/SoftmaxCore.hpp"
+#include "../custom/riscv/MxFp8ActQuant.hpp"
 
 #ifndef xlen
 #define xlen 64

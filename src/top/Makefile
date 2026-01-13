@@ -17,9 +17,14 @@ SPIKE_CONFIGURE_STAMP = $(SPIKE_BUILD_DIR)/.configure_stamp
 
 # Extension directories
 EXTENSIONS_DIR = $(ROOT_DIR)/extensions
+CUSTOM_RISCV_DIR = $(ROOT_DIR)/custom/riscv
 EXTENSIONS_SRC = $(wildcard $(EXTENSIONS_DIR)/*.cc) $(wildcard $(EXTENSIONS_DIR)/*.cpp)
+CUSTOM_RISCV_SRC = $(wildcard $(CUSTOM_RISCV_DIR)/*.cc) $(wildcard $(CUSTOM_RISCV_DIR)/*.cpp)
+ALL_EXTENSIONS_SRC = $(EXTENSIONS_SRC) $(CUSTOM_RISCV_SRC)
 EXTENSIONS_OBJ = $(patsubst $(EXTENSIONS_DIR)/%.cc,$(BUILD_DIR)/extensions/%.o,$(filter %.cc,$(EXTENSIONS_SRC))) \
-                 $(patsubst $(EXTENSIONS_DIR)/%.cpp,$(BUILD_DIR)/extensions/%.o,$(filter %.cpp,$(EXTENSIONS_SRC)))
+                 $(patsubst $(EXTENSIONS_DIR)/%.cpp,$(BUILD_DIR)/extensions/%.o,$(filter %.cpp,$(EXTENSIONS_SRC))) \
+                 $(patsubst $(CUSTOM_RISCV_DIR)/%.cc,$(BUILD_DIR)/custom/riscv/%.o,$(filter %.cc,$(CUSTOM_RISCV_SRC))) \
+                 $(patsubst $(CUSTOM_RISCV_DIR)/%.cpp,$(BUILD_DIR)/custom/riscv/%.o,$(filter %.cpp,$(CUSTOM_RISCV_SRC)))
 EXTENSIONS_DEP = $(EXTENSIONS_OBJ:.o=.d)
 
 # RISC-V toolchain path (can be overridden)
@@ -45,7 +50,8 @@ INCLUDES = \
 	-I$(SPIKE_DIR)/riscv \
 	-I$(SPIKE_DIR) \
 	-I$(ROOT_DIR) \
-	-I$(EXTENSIONS_DIR)
+	-I$(EXTENSIONS_DIR) \
+	-I$(CUSTOM_RISCV_DIR)
 
 # Linker flags
 LDFLAGS = -Wl,-rpath,$(SPIKE_LIB_DIR) -Wl,--no-as-needed
@@ -66,6 +72,11 @@ $(BUILD_DIR)/extensions/%.o: $(EXTENSIONS_DIR)/%.cc
 
 # Build extensions (.cpp files)
 $(BUILD_DIR)/extensions/%.o: $(EXTENSIONS_DIR)/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+# Build custom RISC-V extensions (.cpp files)
+$(BUILD_DIR)/custom/riscv/%.o: $(CUSTOM_RISCV_DIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 

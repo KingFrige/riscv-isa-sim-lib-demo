@@ -1,0 +1,8 @@
+# TODO
+
+- [x] 需求提取数组Input_BF16 & Output_BF16,两者索引是对应关系
+- [x] 每32的倍数个元素一组, 判断文件末尾是否有mn, 如果m1或者没有则32<<(1-1) = 32个元素一组,如果m2则 32 << (2-1) = 64 个元素一组
+- [x] 分别提取对应softmax / exp / quant 内的数组
+- [x] 修复C_src/Makefile
+- [ ] C_src/riscv/main_softmax.cpp  中的ROW_LEN需要能通过命令行传入，在make执行softmax的时候能遍历L=32/64/128/256/512 5中情况，其中生成的log按照 softmax_output_mN.log取名，其中N = L>>5 
+
