@@ -108,9 +108,10 @@ TEST_ELF = $(BUILD_DIR)/firmware/main.elf
 build_test: $(TARGET)
 	cd $(TEST_SW_DIR) && RISCV_PATH=$(RISCV_PATH) make O=$(BUILD_DIR)/firmware
 
-.PHONY: run
-run: $(TEST_ELF)
-	$(TARGET) --isa=rv64imafdcv_zicsr_xperia_xperiv -l --log=log.txt --log-commits --instructions=2000 $(TEST_ELF)
+# Run with build directory paths
+.PHONY: run-build
+run-build: 
+	$(BUILD_DIR)/top-main --isa=rv64imafdcv_zvl512b_zicsr_xperia_xperiv -l --log=$(BUILD_DIR)/log.txt --log-commits --instructions=8000 $(BUILD_DIR)/firmware/main.elf
 
 # Rule to ensure test program is built
 $(TEST_ELF): build_test

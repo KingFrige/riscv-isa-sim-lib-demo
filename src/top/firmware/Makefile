@@ -16,7 +16,7 @@ CFLAGS += -std=c11
 CFLAGS += -Wall
 CFLAGS += -Wno-unused-label
 CFLAGS += -Os
-CFLAGS += -march=rv64imafdcv_zvl1024b
+CFLAGS += -march=rv64imafdcv_zvl512b
 CFLAGS += --no-integrated-cpp
 CFLAGS += -mcmodel=medany
 
@@ -25,7 +25,7 @@ ASFLAGS += -c
 ASFLAGS += -std=c11
 ASFLAGS += -Os
 ASFLAGS += -Wall
-ASFLAGS += -march=rv64imafdcv_zvl1024b
+ASFLAGS += -march=rv64imafdcv_zvl512b
 ASFLAGS += -mcmodel=medany
 
 # Linker directives.
@@ -33,6 +33,7 @@ LFLAGS += -Wall
 LFLAGS += -Os
 LFLAGS += -Wl,--no-relax
 LFLAGS += -nostdlib
+LFLAGS += -lgcc -lc
 LFLAGS += -Tscript.ld
 LFLAGS += -mcmodel=medany
 

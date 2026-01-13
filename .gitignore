@@ -16,3 +16,4 @@ src/sw/start.o
 tags
 log.txt
 build/
+*.swp

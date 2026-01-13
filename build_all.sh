@@ -225,18 +225,11 @@ run_tests() {
         return 1
     fi
     
-    # Run the test with the executable and firmware from build directory
+    # Run the test using the Makefile target which ensures consistent execution
     log_info "Running tests using files from $BUILD_DIR..."
-    if [ -f "$BUILD_DIR/top-main" ] && [ -f "$BUILD_DIR/firmware/main.elf" ]; then
-        cd "$PROJECT_ROOT/src/top"
-        # Run with full path to executable and firmware, and save log to build directory
-        "$BUILD_DIR/top-main" --isa=rv64imafdcv_zicsr_xperia_xperiv -l --log="$BUILD_DIR/log.txt" --log-commits --instructions=2000 "$BUILD_DIR/firmware/main.elf"
-        log_success "Tests completed and log saved to $BUILD_DIR/log.txt"
-    else
-        log_error "Required executable or firmware not found in $BUILD_DIR"
-        log_info "Available in $BUILD_DIR: $(ls $BUILD_DIR 2>/dev/null || echo 'None')"
-        return 1
-    fi
+    cd "$PROJECT_ROOT/src/top"
+    make run-build BUILD_DIR="$PROJECT_ROOT/build"
+    log_success "Tests completed and log saved to $BUILD_DIR/log.txt"
 }
 
 
@@ -244,7 +237,6 @@ run_tests() {
 clean_build() {
     log_info "Cleaning build directories..."
     
-    echo ">>>>>>>>> ${BUILD_DIR}"
     if [ -d "$BUILD_DIR" ]; then
         rm -rf "$BUILD_DIR"
         log_success "Build directory cleaned"

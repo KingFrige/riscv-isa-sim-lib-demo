@@ -30,7 +30,6 @@
 │   ├── spike/              # Spike 构建输出
 │   ├── spike-install/      # Spike 安装目录
 │   └── top/                # top wrapper 构建输出
-├── riscv-isa-sim/          # Spike 子模块 (RISC-V ISA 模拟器)
 ├── C_src/                  # Llama.cpp RISC-V 向量扩展实现
 │   ├── config.h            # 配置文件
 │   ├── Makefile            # 构建配置
@@ -47,6 +46,10 @@
 │   ├── gemm/               # GEMM 运算实现
 │   ├── log/                # 测试日志输出
 │   └── script/             # 数据处理脚本
+├── docs/                   # 项目文档
+│   ├── insn-decode.jpg     # 指令解码图示
+│   └── insn.jpg            # 指令图示
+├── riscv-isa-sim/          # Spike 子模块 (RISC-V ISA 模拟器)
 ├── src/                    # 源代码目录
 │   ├── cpp/                # C++ 内存模拟器集成
 │   │   ├── sw/             # 测试软件
@@ -55,17 +58,28 @@
 │   │   ├── memory_simulator.cc # 内存模拟器实现
 │   │   ├── main.cc         # 主程序入口
 │   │   └── Makefile        # 构建配置
+│   ├── systemc/            # SystemC 集成
+│   │   ├── memory/         # 内存模型
+│   │   ├── turbo/          # 处理器核心包装器
+│   │   ├── uncore/         # 非核心逻辑
+│   │   ├── util/           # 工具函数
+│   │   ├── sw/             # 测试软件
+│   │   ├── sc_main.cpp     # SystemC 主程序
+│   │   ├── Makefile        # 构建配置
+│   │   └── README.md       # 详细使用说明
 │   ├── top/                # 静态链接 Spike 集成 + AI 扩展
+│   │   ├── build/          # 构建输出目录
 │   │   ├── extensions/     # 自定义扩展实现
+│   │   │   ├── BF16.cpp/hpp # BFloat16 处理单元
+│   │   │   ├── custom_expp.cpp/hpp # BF16 e^x 近似计算
+│   │   │   ├── MxFp8ActQuant.cpp/hpp # MXFP8 量化核心
+│   │   │   ├── SoftmaxCore.cpp/hpp # Softmax 计算核心
 │   │   │   ├── decode_macros.h
 │   │   │   ├── insn_macros.h
 │   │   │   ├── primitiveTypes.h
 │   │   │   ├── specialize.h
+│   │   │   ├── util.h
 │   │   │   ├── v_ext_macros.h
-│   │   │   ├── BF16.cpp/hpp # BFloat16 处理单元
-│   │   │   ├── custom_expp.cpp/hpp # BF16 e^x 近似计算
-│   │   │   ├── SoftmaxCore.cpp/hpp # Softmax 计算核心
-│   │   │   ├── MxFp8ActQuant.cpp/hpp # MXFP8 量化核心
 │   │   │   ├── xperia.cc   # 标量扩展（加法）
 │   │   │   └── xperiv.cc   # 向量扩展（加法、乘法及 AI 指令）
 │   │   ├── firmware/       # 测试固件
@@ -74,30 +88,22 @@
 │   │   │   ├── script.ld   # 链接脚本
 │   │   │   └── Makefile    # 固件构建配置
 │   │   ├── spike_main.cc   # 自定义 Spike 主程序
-│   │   ├── Makefile        # 静态链接构建配置
-│   │   └── build/          # 构建输出目录
-├── src/systemc/            # SystemC 集成
-│   ├── memory/             # 内存模型
-│   ├── turbo/              # 处理器核心包装器
-│   ├── uncore/             # 非核心逻辑
-│   ├── util/               # 工具函数
-│   ├── sw/                 # 测试软件
-│   ├── sc_main.cpp         # SystemC 主程序
-│   ├── Makefile            # 构建配置
-│   └── README.md           # 详细使用说明
+│   │   └── Makefile        # 静态链接构建配置
 ├── src/xperimental/        # 自定义扩展实验
 │   ├── xperimental_ext/    # 扩展实现 (.so 动态库)
 │   ├── xperimental_sw/     # 测试软件
 │   └── README.md           # 扩展使用指南
 ├── build_all.sh            # 统一构建脚本
-├── build-spike.sh          # 构建 Spike 脚本
-├── set-env.sh              # 环境变量设置脚本
-├── require.txt             # 项目需求说明
-├── README.md               # 项目总览
+├── exp_analysis.md         # 实验分析文档
 ├── IFLOW.md                # 项目文档
+├── LICENSE                 # 许可证文件
+├── README.md               # 项目总览
+├── require.txt             # 项目需求说明
 ├── run_log_after_simplify.txt # 运行日志
+├── set-env.sh              # 环境变量设置脚本
+├── tags                    # 代码标签文件
 ├── test_error.c            # 测试错误文件
-└── .gitmodules             # Git 子模块配置
+└── test_vlen.log           # 测试向量长度日志
 ```
 
 ## 快速开始
@@ -195,7 +201,7 @@ cd src/top
 make clean
 make spike_build
 make
-./build/top-main --isa=rv64imafdcv_zicsr_xperia_xperiv -l --log=log.txt --log-commits --instructions=2000 build/firmware/main.elf
+./build/top-main --isa=rv64imafdcv_zvl512b_zicsr_xperia_xperiv -l --log=log.txt --log-commits --instructions=2000 build/firmware/main.elf
 
 # 使用 RISC-V 工具链编译固件
 cd src/top/firmware
@@ -227,7 +233,7 @@ make all
 
 ### Spike 构建配置
 
-Spike 作为子模块位于 `riscv-isa-sim/` 目录。构建过程会自动配置和安装到 `build/spike-install/`。
+Spike 作为子模块位于 `riscv-isa-sim/` 目录。构建过程会自动配置和安装到 `riscv-isa-sim/install`。
 
 关键环境变量（通过 `set-env.sh` 设置）：
 - `SPIKE_INSTALL_DIR`: Spike 安装目录
@@ -260,7 +266,7 @@ Spike 作为子模块位于 `riscv-isa-sim/` 目录。构建过程会自动配�
 
 **构建特点：**
 - 将自定义扩展（xperia, xperiv, exp, softmax, quant）直接编译到可执行文件中
-- 支持 `--isa=rv64imafdcv_zicsr_xperia_xperiv` 指令集
+- 支持 `--isa=rv64imafdcv_zvl512b_zicsr_xperia_xperiv` 指令集
 - 无需动态加载扩展库
 - 测试固件自动编译并链接
 
@@ -447,6 +453,15 @@ make single ARGS=0x3F80  # 运行单值 exp 测试 (输入 1.0)
 5. **错误处理**: 报告测试失败并传递错误代码
 6. **成功报告**: 通过 `tohost` 机制报告测试通过
 
+### 新增 LMUL 测试覆盖
+
+最新的测试程序 (`src/top/firmware/main.c`) includes comprehensive tests for different LMUL (Vector Length Multiplier) configurations:
+- **Test 7-10**: EXP instruction with LMUL=1, 2, 4, 8
+- **Test 11-14**: SOFTMAX instruction with LMUL=1, 2, 4, 8
+- **Test 15-18**: QUANT instruction with LMUL=1, 2, 4, 8
+
+Each test verifies the instruction with different vector lengths, ensuring correct operation across all supported vector configurations.
+
 ## 故障排除
 
 ### 常见问题
@@ -459,8 +474,8 @@ make single ARGS=0x3F80  # 运行单值 exp 测试 (输入 1.0)
 
 2. **库加载错误**
    - 确保 `LD_LIBRARY_PATH` 正确设置：`echo $LD_LIBRARY_PATH`
-   - 检查动态库路径和权限：`ls -la build/spike-install/lib/`
-   - 验证 Spike 是否正确安装：`ls build/spike-install/bin/spike`
+   - 检查动态库路径和权限：`ls -la riscv-isa-sim/install/lib/`
+   - 验证 Spike 是否正确安装：`ls riscv-isa-sim/install/bin/spike`
 
 3. **SystemC 链接错误**
    - 验证 `SYSTEMC_INCLUDE` 和 `SYSTEMC_LIBDIR` 环境变量
@@ -497,7 +512,7 @@ echo $LD_LIBRARY_PATH
 which riscv64-unknown-elf-gcc
 
 # 检查 Spike 安装
-ls build/spike-install/bin/spike 2>/dev/null || echo "Spike not installed"
+ls riscv-isa-sim/install/bin/spike 2>/dev/null || echo "Spike not installed"
 ```
 
 ## 后续开发
@@ -525,6 +540,10 @@ ls build/spike-install/bin/spike 2>/dev/null || echo "Spike not installed"
 5. **改进的构建系统**: 支持静态链接方式，避免动态库依赖问题
 6. **完整测试框架**: 包含预期结果校验和错误报告机制
 7. **LMUL 测试覆盖**: 增加了对不同向量长度乘数 (1/2/4/8) 的测试
+8. **指令编码参考**: 根据 docs/insn-decode.jpg, docs/insn.jpg 实现扩展
+9. **算法集成**: 将 C_src 中的代码复制到 top 扩展目录，不再依赖外部目录
+10. **扩展测试**: 提取 C_src 中对应 main 函数中的测试方法到测试函数中
+11. **Firmware 复杂测试**: 增加更多测试到 firmware 中来测试新增的指令 quant/exp/softmax
 
 ### 修复改进
 1. **Commit Log 问题**: 修复了 EXP/softmax/quant 指令在日志中不显示的问题

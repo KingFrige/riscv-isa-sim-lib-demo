@@ -49,27 +49,36 @@ struct : public arg_t {
 
 static reg_t peri_v_add_impl(processor_t* p, insn_t insn, reg_t pc)
 {
-  fprintf(stderr, "xperiv: peri_v_add_impl called! vd=%lu, vs1=%lu, vs2=%lu\n", 
+  fprintf(stderr, "xperiv_add: peri_v_add_impl called! vd=%lu, vs1=%lu, vs2=%lu\n", 
           insn.rd(), insn.rs1(), insn.rs2());
   
   // Get vector length
-  auto vlen = p->VU.get_vlen() / 8;
+  auto vlen = p->VU.get_vlen();
   auto elen = p->VU.vsew;
   auto current_vl = p->VU.vl->read();
-  fprintf(stderr, "xperiv: vlen=%lu, elen=%lu, vl=%lu\n", vlen, elen, current_vl);
+  fprintf(stderr, "xperiv_add: vlen=%lu, elen=%lu, vl=%lu\n", vlen, elen, current_vl);
   
   VI_VV_LOOP
   ({
     vd = vs1 + vs2;
-    fprintf(stderr, "xperiv: vd[%lu] = vs1[%lu] + vs2[%lu] = %ld + %ld = %ld\n",
+    fprintf(stderr, "xperiv_add: vd[%lu] = vs1[%lu] + vs2[%lu] = %ld + %ld = %ld\n",
             i, i, i, (long)vs1, (long)vs2, (long)vd);
   })
-  fprintf(stderr, "xperiv: peri_v_add_impl returning\n");
+  fprintf(stderr, "xperiv_add: peri_v_add_impl returning\n");
   return pc + 4;
 }
 
 static reg_t peri_v_mul_impl(processor_t* p, insn_t insn, reg_t pc)
 {
+  fprintf(stderr, "xperiv_mul: peri_v_add_impl called! vd=%lu, vs1=%lu, vs2=%lu\n", 
+          insn.rd(), insn.rs1(), insn.rs2());
+
+  // Get vector length
+  auto vlen = p->VU.get_vlen();
+  auto elen = p->VU.vsew;
+  auto current_vl = p->VU.vl->read();
+  fprintf(stderr, "xperiv_mul: vlen=%lu, elen=%lu, vl=%lu\n", vlen, elen, current_vl);
+
   VI_VV_LOOP
   ({
     vd = vs1 * vs2;
@@ -84,14 +93,14 @@ static reg_t peri_v_mul_impl(processor_t* p, insn_t insn, reg_t pc)
 // ============================================================================
 static reg_t exp_impl(processor_t* p, insn_t insn, reg_t pc)
 {
-  fprintf(stderr, "xperiv: exp_impl called! vd=%lu, vs1=%lu\n", 
+  fprintf(stderr, "xperiv_exp: called! vd=%lu, vs1=%lu\n", 
           insn.rd(), insn.rs1());
   
   // Get vector length
-  auto vlen = p->VU.get_vlen() / 8;
+  auto vlen = p->VU.get_vlen();
   auto elen = p->VU.vsew;
   auto current_vl = p->VU.vl->read();
-  fprintf(stderr, "xperiv: vlen=%lu, elen=%lu, vl=%lu\n", vlen, elen, current_vl);
+  fprintf(stderr, "xperiv_exp: vlen=%lu, elen=%lu, vl=%lu\n", vlen, elen, current_vl);
   
   // Initialize BF16 LUTs if needed
   BF16::init_luts();
@@ -108,7 +117,7 @@ static reg_t exp_impl(processor_t* p, insn_t insn, reg_t pc)
   reg_t vl = p->VU.vl->read();
   reg_t sew = p->VU.vsew;
   
-  fprintf(stderr, "xperiv: exp actual processing - vl=%lu, sew=%lu\n", vl, sew);
+  fprintf(stderr, "xperiv_exp: actual processing - vl=%lu, sew=%lu\n", vl, sew);
   
   // Process based on the configured SEW (element width)
   for (reg_t i = 0; i < vl; ++i) {
@@ -118,11 +127,11 @@ static reg_t exp_impl(processor_t* p, insn_t insn, reg_t pc)
     // Store result back as 16-bit value
     uint16_t &vd = p->VU.elt<uint16_t>(insn.rd(), i, true);
     vd = result;
-    fprintf(stderr, "xperiv: exp vd[%lu] = exp(vs1[%lu]) = 0x%04x -> 0x%04x\n",
+    fprintf(stderr, "xperiv_exp: vd[%lu] = exp(vs1[%lu]) = 0x%04x -> 0x%04x\n",
             i, i, vs1, result);
   }
   
-  fprintf(stderr, "xperiv: exp_impl returning\n");
+  fprintf(stderr, "xperiv_exp: returning\n");
   return pc + 4;
 }
 
@@ -131,14 +140,14 @@ static reg_t exp_impl(processor_t* p, insn_t insn, reg_t pc)
 // ============================================================================
 static reg_t softmax_impl(processor_t* p, insn_t insn, reg_t pc)
 {
-  fprintf(stderr, "xperiv: softmax_impl called! vd=%lu, vs1=%lu\n", 
+  fprintf(stderr, "xperiv_softmax: called! vd=%lu, vs1=%lu\n", 
           insn.rd(), insn.rs1());
   
   // Get vector length
-  auto vlen = p->VU.get_vlen() / 8;
+  auto vlen = p->VU.get_vlen();
   auto elen = p->VU.vsew;
   auto current_vl = p->VU.vl->read();
-  fprintf(stderr, "xperiv: vlen=%lu, elen=%lu, vl=%lu\n", vlen, elen, current_vl);
+  fprintf(stderr, "xperiv_softmax: vlen=%lu, elen=%lu, vl=%lu\n", vlen, elen, current_vl);
   
   // Initialize BF16 LUTs
   BF16::init_luts();
@@ -150,7 +159,7 @@ static reg_t softmax_impl(processor_t* p, insn_t insn, reg_t pc)
     // Always read as 16-bit BF16 value, regardless of configured SEW
     uint16_t val = p->VU.elt<uint16_t>(insn.rs1(), i);
     input_values.push_back(val);
-    fprintf(stderr, "xperiv: softmax input[%lu] = 0x%04x\n", i, val);
+    fprintf(stderr, "xperiv_softmax: softmax input[%lu] = 0x%04x\n", i, val);
   }
   
   // Create SoftmaxCore_Model instance
@@ -168,10 +177,10 @@ static reg_t softmax_impl(processor_t* p, insn_t insn, reg_t pc)
     // Use the write function that properly logs to commit log
     auto& vd_reg = p->VU.elt<uint16_t>(insn.rd(), i, true);
     vd_reg = output_val;
-    fprintf(stderr, "xperiv: softmax vd[%lu] = 0x%04x\n", i, output_val);
+    fprintf(stderr, "xperiv_softmax: vd[%lu] = 0x%04x\n", i, output_val);
   }
   
-  fprintf(stderr, "xperiv: softmax_impl returning\n");
+  fprintf(stderr, "xperiv_softmax: returning\n");
   return pc + 4;
 }
 
@@ -180,14 +189,14 @@ static reg_t softmax_impl(processor_t* p, insn_t insn, reg_t pc)
 // ============================================================================
 static reg_t quant_impl(processor_t* p, insn_t insn, reg_t pc)
 {
-  fprintf(stderr, "xperiv: quant_impl called! vd=%lu, vs1=%lu\n", 
+  fprintf(stderr, "xperiv_quant: called! vd=%lu, vs1=%lu\n", 
           insn.rd(), insn.rs1());
   
   // Get vector length
-  auto vlen = p->VU.get_vlen() / 8;
+  auto vlen = p->VU.get_vlen();
   auto elen = p->VU.vsew;
   auto current_vl = p->VU.vl->read();
-  fprintf(stderr, "xperiv: vlen=%lu, elen=%lu, vl=%lu\n", vlen, elen, current_vl);
+  fprintf(stderr, "xperiv_quant: vlen=%lu, elen=%lu, vl=%lu\n", vlen, elen, current_vl);
   
   // Initialize BF16 LUTs
   BF16::init_luts();
@@ -199,7 +208,7 @@ static reg_t quant_impl(processor_t* p, insn_t insn, reg_t pc)
     // Always read as 16-bit BF16 value, regardless of configured SEW
     uint16_t val = p->VU.elt<uint16_t>(insn.rs1(), i);
     input_values.push_back(val);
-    fprintf(stderr, "xperiv: quant input[%lu] = 0x%04x\n", i, val);
+    fprintf(stderr, "xperiv_quant: input[%lu] = 0x%04x\n", i, val);
   }
   
   // Create MxFp8ActQuant_Model instance
@@ -214,10 +223,10 @@ static reg_t quant_impl(processor_t* p, insn_t insn, reg_t pc)
     // Store 8-bit value in lower 8 bits of 16-bit element (upper 8 bits are zero)
     auto& vd_reg = p->VU.elt<uint16_t>(insn.rd(), i, true);
     vd_reg = quantized;  // Implicitly sets upper 8 bits to 0
-    fprintf(stderr, "xperiv: quant vd[%lu] = 0x%02x\n", i, quantized);
+    fprintf(stderr, "xperiv_quant: vd[%lu] = 0x%02x\n", i, quantized);
   }
   
-  fprintf(stderr, "xperiv: quant_impl returning\n");
+  fprintf(stderr, "xperiv_quant: returning\n");
   return pc + 4;
 }
 
