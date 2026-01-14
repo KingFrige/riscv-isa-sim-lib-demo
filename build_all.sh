@@ -248,6 +248,126 @@ clean_build() {
     fi
 }
 
+
+# Build mailbox firmware
+build_mailbox_firmware() {
+    log_info "Building mailbox firmware..."
+    
+    # Create build directory
+    mkdir -p "$BUILD_DIR/firmware/mailbox"
+    
+    # Set required environment variable
+    export RISCV_PATH="$RISCV_TOOLCHAIN"
+    
+    # Change to mailbox firmware directory and build
+    cd "$PROJECT_ROOT/src/top/firmware/mailbox"
+    
+    # Set RISCV_PREFIX for the toolchain
+    export RISCV_PREFIX="$RISCV_TOOLCHAIN/bin/riscv64-unknown-elf-"
+    
+    # Build the mailbox firmware
+    # Use the current directory as PROJECT_ROOT and set FIRMWARE_DIR to current directory
+    make RISCV_PREFIX="$RISCV_PREFIX" PROJECT_ROOT="." FIRMWARE_DIR="." BUILD_DIR="build"
+    
+    # Copy the built firmware to the project build directory
+    if [ -f "build/firmware.hex" ]; then
+        cp "build/firmware.hex" "$BUILD_DIR/firmware/mailbox/"
+        log_success "Mailbox firmware copied to $BUILD_DIR/firmware/mailbox/"
+    else
+        log_error "Mailbox firmware not found"
+        return 1
+    fi
+    
+    # Return to project root
+    cd "$PROJECT_ROOT"
+    log_success "Mailbox firmware built successfully"
+}
+
+# Build spike_mailbox wrapper
+build_spike_mailbox() {
+    log_info "Building spike mailbox wrapper..."
+    
+    # Create build directory
+    mkdir -p "$BUILD_DIR/mailbox"
+    
+    # Set environment variables for the build
+    export SPIKE_INSTALL_DIR="$PROJECT_ROOT/riscv-isa-sim/install"
+    export SPIKE_SOURCE_DIR="$SPIKE_SRC_DIR"
+    export RISCV_PATH="$RISCV_TOOLCHAIN"
+    
+    # Set compiler and other build tools
+    export CC=gcc
+    export CXX=g++
+    
+    # Build spike_mailbox executable
+    cd "$PROJECT_ROOT/src/top"
+    
+    # Compile spike_mailbox with necessary includes and libraries
+    $CXX -std=c++17 -fPIC -O2 -Wall -MMD -MP -D_GNU_SOURCE \
+        -I"$SPIKE_INSTALL_DIR/include" \
+        -I"$SPIKE_INSTALL_DIR/include/riscv" \
+        -I"$SPIKE_INSTALL_DIR/include/fesvr" \
+        -I"$SPIKE_INSTALL_DIR/include/disasm" \
+        -I"$SPIKE_INSTALL_DIR/include/softfloat" \
+        -I"$SPIKE_BUILD_DIR" \
+        -I"$SPIKE_DIR/riscv" \
+        -I"$SPIKE_DIR" \
+        -I"$PROJECT_ROOT/src/top" \
+        -I"$PROJECT_ROOT/src/top/extensions" \
+        -c "$PROJECT_ROOT/src/top/spike_mailbox.cc" \
+        -o "$BUILD_DIR/mailbox/spike_mailbox.o"
+        
+    # Compile extensions
+    $CXX -std=c++17 -fPIC -O2 -Wall -MMD -MP -D_GNU_SOURCE \
+        -I"$SPIKE_INSTALL_DIR/include" \
+        -I"$SPIKE_INSTALL_DIR/include/riscv" \
+        -I"$SPIKE_INSTALL_DIR/include/fesvr" \
+        -I"$SPIKE_INSTALL_DIR/include/disasm" \
+        -I"$SPIKE_INSTALL_DIR/include/softfloat" \
+        -I"$SPIKE_BUILD_DIR" \
+        -I"$SPIKE_DIR/riscv" \
+        -I"$SPIKE_DIR" \
+        -I"$PROJECT_ROOT/src/top" \
+        -I"$PROJECT_ROOT/src/top/extensions" \
+        -c "$PROJECT_ROOT/src/top/extensions/spike_wrapper.cc" \
+        -o "$BUILD_DIR/mailbox/spike_wrapper.o"
+        
+    $CXX -std=c++17 -fPIC -O2 -Wall -MMD -MP -D_GNU_SOURCE \
+        -I"$SPIKE_INSTALL_DIR/include" \
+        -I"$SPIKE_INSTALL_DIR/include/riscv" \
+        -I"$SPIKE_INSTALL_DIR/include/fesvr" \
+        -I"$SPIKE_INSTALL_DIR/include/disasm" \
+        -I"$SPIKE_INSTALL_DIR/include/softfloat" \
+        -I"$SPIKE_BUILD_DIR" \
+        -I"$SPIKE_DIR/riscv" \
+        -I"$SPIKE_DIR" \
+        -I"$PROJECT_ROOT/src/top" \
+        -I"$PROJECT_ROOT/src/top/extensions" \
+        -c "$PROJECT_ROOT/src/top/extensions/mailbox.cc" \
+        -o "$BUILD_DIR/mailbox/mailbox.o"
+    
+    # Link everything together using Spike libraries
+    $CXX -Wl,-rpath,"$SPIKE_INSTALL_DIR/lib" -Wl,--no-as-needed \
+        -L"$SPIKE_INSTALL_DIR/lib" \
+        -o "$BUILD_DIR/mailbox/spike_mailbox" \
+        "$BUILD_DIR/mailbox/spike_mailbox.o" \
+        "$BUILD_DIR/mailbox/spike_wrapper.o" \
+        "$BUILD_DIR/mailbox/mailbox.o" \
+        -lriscv -lsoftfloat -ldisasm -lfesvr -ldl -lpthread
+    
+    # Copy the built executable to the project build directory
+    if [ -f "$BUILD_DIR/mailbox/spike_mailbox" ]; then
+        log_success "Spike mailbox wrapper executable copied to $BUILD_DIR/mailbox/"
+    else
+        log_error "Spike mailbox wrapper executable not found"
+        return 1
+    fi
+    
+    # Return to project root
+    cd "$PROJECT_ROOT"
+    log_success "Spike mailbox wrapper built successfully"
+}
+
 # Show help
 show_help() {
     cat << EOF
@@ -263,6 +383,8 @@ Options:
   -t, --top           Build only top wrapper
   -r, --run-tests     Build top wrapper (if needed) and run tests
   --all               Build everything and run tests
+  --mailbox-firmware  Build only mailbox firmware
+  --spike-mailbox     Build only spike mailbox wrapper
   --riscv PATH        Set RISC-V toolchain path (default: /opt/riscv)
   --spike-src PATH    Set Spike source path (default: ./riscv-isa-sim)
 
@@ -292,6 +414,8 @@ parse_args() {
     local build_spike_flag=0
     local build_firmware_flag=0
     local build_top_flag=0
+    local build_mailbox_firmware_flag=0
+    local build_spike_mailbox_flag=0
     local run_tests_flag=0
 
     if [ $# -lt 1 ]; then
@@ -332,7 +456,17 @@ parse_args() {
                 build_spike_flag=1
                 build_firmware_flag=1
                 build_top_flag=1
+                build_mailbox_firmware_flag=1
+                build_spike_mailbox_flag=1
                 run_tests_flag=1
+                shift
+                ;;
+            --mailbox-firmware)
+                build_mailbox_firmware_flag=1
+                shift
+                ;;
+            --spike-mailbox)
+                build_spike_mailbox_flag=1
                 shift
                 ;;
             --riscv)
@@ -370,6 +504,14 @@ parse_args() {
     
     if [ $build_top_flag -eq 1 ]; then
         build_top_wrapper
+    fi
+    
+    if [ $build_mailbox_firmware_flag -eq 1 ]; then
+        build_mailbox_firmware
+    fi
+    
+    if [ $build_spike_mailbox_flag -eq 1 ]; then
+        build_spike_mailbox
     fi
     
     # Run tests if requested

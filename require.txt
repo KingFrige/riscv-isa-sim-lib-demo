@@ -27,5 +27,5 @@
 
 ## TODO
 
-- [ ] 现在需要将top/spike_main.cc中的help这些移除，命令行的配置吸收到代码中配置，实现这个需求
-- [ ] 保留--log -l 以及加载elf的参数配置
+- [x] 在src/top下有一个新的顶层spike_mailbox, 依赖的文件在 src/top/extensions下，以及riscv-isa-sim, 在build_all.sh中创建新的构建函数，构建它
+- [x] 构建firemware/mailbox下的代码，来测试mailbox
