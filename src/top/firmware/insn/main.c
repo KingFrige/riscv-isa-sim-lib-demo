@@ -74,6 +74,7 @@ int main () {
     // ============================================
     // Test 1: XPERIA scalar addition extension
     // ============================================
+    printf("Starting Test 1: XPERIA scalar addition extension\n");
     {
         // Set up test values
         long a1 = 100;
@@ -99,11 +100,13 @@ int main () {
         if (a0 != 123) {
             REPORT_FAILURE(ERR_XPERIA_ADD);
         }
+        printf("Test 1: XPERIA scalar addition extension passed\n\n");
     }
     
     // ============================================
     // Test 2 & 3: Vector extensions
     // ============================================
+    printf("Starting Test 2 & 3: Vector extensions\n");
     {
         // Vector test data at fixed addresses
         volatile uint32_t* v0_data = (volatile uint32_t*)0x8000a000;
@@ -148,7 +151,6 @@ int main () {
         // Expected: v4[i] = v0[i] + v2[i]
         // [1+5=6, 2+6=8, 3+7=10, ..., 16+20=36]
         uint32_t expected_add[16] = {6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36};
-        printf(">>>> Hello 1\n");
         for (int i = 0; i < 16; i++) {
             uint32_t result = v4_data[i];
             uint32_t expected = expected_add[i];
@@ -177,11 +179,13 @@ int main () {
                 REPORT_FAILURE(ERR_XPERIV_MUL);
             }
         }
+        printf("Test 2 & 3: Vector extensions passed\n\n");
     }
     
     // ============================================
     // Test 4: EXP vector exponential extension
     // ============================================
+    printf("Starting Test 4: EXP vector exponential extension\n");
     {
         // Use same vector memory regions as previous tests
         volatile uint16_t* v0_data = (volatile uint16_t*)0x8000a400;
@@ -242,10 +246,12 @@ int main () {
                 }
             }
         }
+        printf("Test 4: EXP vector exponential extension passed\n\n");
     }
     // ============================================
     // Test 5: SOFTMAX vector softmax extension
     // ============================================
+    printf("Starting Test 5: SOFTMAX vector softmax extension\n");
     {
         // SOFTMAX instruction expects vector of BF16 values and computes softmax across vector
         // Test case 1: Random values from C_src/log/softmax_output.log - expanded for VLEN=512
@@ -388,11 +394,13 @@ int main () {
             printf("SOFTMAX Test 5 case 2 failed: only %d/%d results were valid\n", valid_results2, 32);
             REPORT_FAILURE(ERR_SOFTMAX);
         }
+        printf("Test 5: SOFTMAX vector softmax extension passed\n\n");
     }
     
     // ============================================
     // Test 6: QUANT vector quantization extension
     // ============================================
+    printf("Starting Test 6: QUANT vector quantization extension\n");
     {
         // QUANT instruction quantizes BF16 to MxFP8 with scale
         // Test case 1: Basic quantization with non-zero mantissa - expanded for VLEN=512
@@ -522,11 +530,13 @@ int main () {
             printf("QUANT Test 6 case 2 failed: only %d/%d results were valid\n", valid_results2, 32);
             REPORT_FAILURE(ERR_QUANT);
         }
+        printf("Test 6: QUANT vector quantization extension passed\n\n");
     }
     
     // ============================================
     // NEW Test 7: Test EXP with LMUL = 1
     // ============================================
+    printf("Starting Test 7: Test EXP with LMUL = 1\n");
     {
         volatile uint16_t* v8_data = (volatile uint16_t*)0x8000b800;
         volatile uint16_t* v12_data = (volatile uint16_t*)0x8000bA00;
@@ -591,12 +601,14 @@ int main () {
                 }
             }
         }
+        printf("Test 7: Test EXP with LMUL = 1 passed\n\n");
     }
     
     // ============================================
     // ============================================
     // NEW Test 8: Test EXP with LMUL = 2
     // ============================================
+    printf("Starting Test 8: Test EXP with LMUL = 2\n");
     {
         volatile uint16_t* v0_data = (volatile uint16_t*)0x8000bc00;  // Using new memory region to avoid conflicts
         volatile uint16_t* v8_data = (volatile uint16_t*)0x8000be00;
@@ -665,11 +677,13 @@ int main () {
                 }
             }
         }
+        printf("Test 8: Test EXP with LMUL = 2 passed\n\n");
     }
     
     // ============================================
     // NEW Test 9: Test EXP with LMUL = 4
     // ============================================
+    printf("Starting Test 9: Test EXP with LMUL = 4\n");
     {
         volatile uint16_t* v0_data = (volatile uint16_t*)0x8000c000;  // Using new memory region to avoid conflicts
         volatile uint16_t* v12_data = (volatile uint16_t*)0x8000c200;
@@ -754,11 +768,13 @@ int main () {
                 }
             }
         }
+        printf("Test 9: Test EXP with LMUL = 4 passed\n\n");
     }
     
     // ============================================
     // NEW Test 10: Test EXP with LMUL = 8
     // ============================================
+    printf("Starting Test 10: Test EXP with LMUL = 8\n");
     {
         volatile uint16_t* v0_data = (volatile uint16_t*)0x8000c400;  // Using new memory region to avoid conflicts
         volatile uint16_t* v16_data = (volatile uint16_t*)0x8000c600;
@@ -873,11 +889,14 @@ int main () {
                         REPORT_FAILURE(ERR_EXP);
                     }
                 }
-            }    }
+            }    
+        printf("Test 10: Test EXP with LMUL = 8 passed\n\n");
+    }
     
     // ============================================
     // NEW Test 11: Test SOFTMAX with LMUL = 1
     // ============================================
+    printf("Starting Test 11: Test SOFTMAX with LMUL = 1\n");
     {
         volatile uint16_t* v0_data = (volatile uint16_t*)0x8000c800;  // Using new memory region to avoid conflicts
         volatile uint16_t* v4_data = (volatile uint16_t*)0x8000ca00;
@@ -941,12 +960,14 @@ int main () {
             printf("SOFTMAX Test 11 (LMUL=1) failed: only %d/%d results were valid\n", valid_results, 8);
             REPORT_FAILURE(ERR_SOFTMAX);
         }
+        printf("Test 11: Test SOFTMAX with LMUL = 1 passed\n\n");
     }
     
     // ============================================
     // ============================================
     // NEW Test 12: Test SOFTMAX with LMUL = 2
     // ============================================
+    printf("Starting Test 12: Test SOFTMAX with LMUL = 2\n");
     {
         volatile uint16_t* v0_data = (volatile uint16_t*)0x8000cc00;  // Using new memory region to avoid conflicts
         volatile uint16_t* v8_data = (volatile uint16_t*)0x8000ce00;
@@ -1012,11 +1033,13 @@ int main () {
             printf("SOFTMAX Test 12 (LMUL=2) failed: only %d/%d results were valid\n", valid_results, 16);
             REPORT_FAILURE(ERR_SOFTMAX);
         }
+        printf("Test 12: Test SOFTMAX with LMUL = 2 passed\n\n");
     }
     
     // ============================================
     // NEW Test 13: Test SOFTMAX with LMUL = 4
     // ============================================
+    printf("Starting Test 13: Test SOFTMAX with LMUL = 4\n");
     {
         volatile uint16_t* v0_data  = (volatile uint16_t*)0x8000d000;  // Using new memory region to avoid conflicts
         volatile uint16_t* v12_data = (volatile uint16_t*)0x8000d200;
@@ -1113,11 +1136,13 @@ int main () {
             printf("SOFTMAX Test 13 (LMUL=4) failed: only %d/%d results were valid\n", valid_results, 128);
             REPORT_FAILURE(ERR_SOFTMAX);
         }
+        printf("Test 13: Test SOFTMAX with LMUL = 4 passed\n\n");
     }
     
     // ============================================
     // NEW Test 14: Test SOFTMAX with LMUL = 8
     // ============================================
+    printf("Starting Test 14: Test SOFTMAX with LMUL = 8\n");
     {
         volatile uint16_t* v0_data  = (volatile uint16_t*)0x8000d400;  // Using new memory region to avoid conflicts
         volatile uint16_t* v16_data = (volatile uint16_t*)0x8000d600;
@@ -1246,11 +1271,13 @@ int main () {
             printf("SOFTMAX Test 14 (LMUL=8) failed: only %d/%d results were valid\n", valid_results, 256);
             REPORT_FAILURE(ERR_SOFTMAX);
         }
+        printf("Test 14: Test SOFTMAX with LMUL = 8 passed\n\n");
     }
     
     // ============================================
     // NEW Test 15: Test QUANT with LMUL = 1
     // ============================================
+    printf("Starting Test 15: Test QUANT with LMUL = 1\n");
     {
         volatile uint16_t* v0_data = (volatile uint16_t*)0x8000d800;  // Using new memory region to avoid conflicts
         volatile uint16_t* v4_data = (volatile uint16_t*)0x8000da00;
@@ -1322,12 +1349,14 @@ int main () {
                 REPORT_FAILURE(ERR_QUANT);
             }
         }
+        printf("Test 15: Test QUANT with LMUL = 1 passed\n\n");
     }
     
     // ============================================
     // ============================================
     // NEW Test 16: Test QUANT with LMUL = 2
     // ============================================
+    printf("Starting Test 16: Test QUANT with LMUL = 2\n");
     {
         volatile uint16_t* v0_data = (volatile uint16_t*)0x8000dc00;  // Using new memory region to avoid conflicts
         volatile uint16_t* v8_data = (volatile uint16_t*)0x8000de00;
@@ -1405,10 +1434,12 @@ int main () {
                 REPORT_FAILURE(ERR_QUANT);
             }
         }
+        printf("Test 16: Test QUANT with LMUL = 2 passed\n\n");
     }
     
     // All tests passed
     // ============================================
+    printf("All tests passed successfully!\n");
     
     // Memory barrier to ensure all previous accesses are visible
     __sync_synchronize();

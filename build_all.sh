@@ -130,19 +130,19 @@ build_firmware() {
     mkdir -p "$FIRMWARE_BUILD_DIR"
     
     # Change to top firmware directory and build
-    cd "$PROJECT_ROOT/src/top/firmware"
+    cd "$PROJECT_ROOT/src/top/firmware/insn"
     
     # Set required environment variable
     export RISCV_PATH="$RISCV_TOOLCHAIN"
     
     # Build the firmware
-    make
+    make RISCV_PATH="$RISCV_TOOLCHAIN"
     
     # Copy the built firmware to the project build directory
-    mkdir -p "$BUILD_DIR/firmware"
+    mkdir -p "$BUILD_DIR/firmware/insn"
     if [ -f "main.elf" ]; then
-        cp "main.elf" "$BUILD_DIR/firmware/"
-        log_success "Firmware copied to $BUILD_DIR/firmware/"
+        cp "main.elf" "$BUILD_DIR/firmware/insn"
+        log_success "Firmware copied to $BUILD_DIR/firmware/insn"
     else
         log_error "Firmware not found"
         return 1
@@ -194,9 +194,9 @@ build_top_wrapper() {
     fi
     
     # Copy firmware if built
-    if [ -f "$TOP_BUILD_DIR/firmware/main.elf" ]; then
+    if [ -f "$TOP_BUILD_DIR/firmware/insn/main.elf" ]; then
         mkdir -p "$BUILD_DIR/firmware"
-        cp "$TOP_BUILD_DIR/firmware/main.elf" "$BUILD_DIR/firmware/"
+        cp "$TOP_BUILD_DIR/firmware/insn/main.elf" "$BUILD_DIR/firmware/"
         log_success "Firmware copied to $BUILD_DIR/firmware/"
     fi
     
@@ -220,8 +220,8 @@ run_tests() {
         return 1
     fi
     
-    if [ ! -f "$BUILD_DIR/firmware/main.elf" ]; then
-        log_error "main.elf not found in $BUILD_DIR/firmware. Please build the firmware first."
+    if [ ! -f "$BUILD_DIR/firmware/insn/main.elf" ]; then
+        log_error "main.elf not found in $BUILD_DIR/firmware/insn. Please build the firmware first."
         return 1
     fi
     

@@ -59,7 +59,7 @@ LDLIBS = -lriscv -lsoftfloat -ldisasm -lfesvr -ldl -lpthread
 
 # Default target
 all: $(TARGET)
-	cd firmware && $(MAKE) O=$(BUILD_DIR)/firmware
+	cd firmware/insn && $(MAKE) O=$(BUILD_DIR)/firmware
 
 # Include dependencies
 -include $(EXTENSIONS_DEP)
@@ -112,8 +112,8 @@ reconfigure_spike:
 	$(MAKE) $(SPIKE_CONFIGURE_STAMP)
 
 # Test program compilation
-TEST_SW_DIR = $(ROOT_DIR)/firmware
-TEST_ELF = $(BUILD_DIR)/firmware/main.elf
+TEST_SW_DIR = $(ROOT_DIR)/firmware/insn
+TEST_ELF = $(BUILD_DIR)/firmware/insn/main.elf
 
 .PHONY: build_test
 build_test: $(TARGET)
@@ -122,7 +122,7 @@ build_test: $(TARGET)
 # Run with build directory paths
 .PHONY: run-build
 run-build: 
-	$(BUILD_DIR)/top-main --isa=rv64imafdcv_zvl512b_zicsr_xperia_xperiv -l --log=$(BUILD_DIR)/log.txt --log-commits --instructions=80000 $(BUILD_DIR)/firmware/main.elf
+	$(BUILD_DIR)/top-main --isa=rv64imafdcv_zvl512b_zicsr_xperia_xperiv -l --log=$(BUILD_DIR)/log.txt --log-commits --instructions=80000 $(BUILD_DIR)/firmware/insn/main.elf
 
 # Rule to ensure test program is built
 $(TEST_ELF): build_test
