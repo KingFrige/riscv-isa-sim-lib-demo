@@ -3,6 +3,8 @@
 // #include <stdio.h>
 #include <stdint.h>
 
+#include "printf.h"
+
 // tohost and fromhost symbols for communication with Spike
 __attribute__((section(".tohost")))
 volatile uint64_t tohost = 0;
@@ -104,10 +106,10 @@ int main () {
     // ============================================
     {
         // Vector test data at fixed addresses
-        volatile uint32_t* v0_data = (volatile uint32_t*)0x80001000;
-        volatile uint32_t* v2_data = (volatile uint32_t*)0x80001100;
-        volatile uint32_t* v4_data = (volatile uint32_t*)0x80001200;
-        volatile uint32_t* v6_data = (volatile uint32_t*)0x80001300;
+        volatile uint32_t* v0_data = (volatile uint32_t*)0x8000a000;
+        volatile uint32_t* v2_data = (volatile uint32_t*)0x8000a100;
+        volatile uint32_t* v4_data = (volatile uint32_t*)0x8000a200;
+        volatile uint32_t* v6_data = (volatile uint32_t*)0x8000a300;
         
         // Initialize test vectors - now testing more elements based on VLEN=512
         // With VLEN=512 and e32, LMUL=m1, we can process up to 512/32=16 elements per vector register
@@ -126,10 +128,10 @@ int main () {
           li      t0, 1024;\
           vsetvli t0, t0, e32, m1, tu, mu;\
         \
-          li      t0, 0x80001000;\
+          li      t0, 0x8000a000;\
           vle32.v v0, (t0);\
         \
-          li      t2, 0x80001100;\
+          li      t2, 0x8000a100;\
           vle32.v v2, (t2);\
         ");
 
@@ -138,7 +140,7 @@ int main () {
         
         // Store v4 to memory for verification
         __asm__("\
-          li      t0, 0x80001200;\
+          li      t0, 0x8000a200;\
           vse32.v v4, (t0);\
         ");
         
@@ -146,8 +148,12 @@ int main () {
         // Expected: v4[i] = v0[i] + v2[i]
         // [1+5=6, 2+6=8, 3+7=10, ..., 16+20=36]
         uint32_t expected_add[16] = {6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36};
+        printf(">>>> Hello 1\n");
         for (int i = 0; i < 16; i++) {
+            uint32_t result = v4_data[i];
+            uint32_t expected = expected_add[i];
             if (v4_data[i] != expected_add[i]) {
+                printf("EXP Test 2 failed at index %d: result=0x%04x, expected=0x%04x\n", i, result, expected);
                 REPORT_FAILURE(ERR_XPERIV_ADD);
             }
         }
@@ -158,7 +164,7 @@ int main () {
         
         // Store v6 to memory for verification
         __asm__("\
-          li      t0, 0x80001300;\
+          li      t0, 0x8000a300;\
           vse32.v v6, (t0);\
         ");
         
@@ -178,8 +184,8 @@ int main () {
     // ============================================
     {
         // Use same vector memory regions as previous tests
-        volatile uint16_t* v0_data = (volatile uint16_t*)0x80001000;
-        volatile uint16_t* v4_data = (volatile uint16_t*)0x80001200;
+        volatile uint16_t* v0_data = (volatile uint16_t*)0x8000a400;
+        volatile uint16_t* v4_data = (volatile uint16_t*)0x8000a600;
         
         // Test case 1: Basic values from C_src test - expanded to use more of VLEN=512
         // With VLEN=512 and e16, we can process up to 512/16 = 32 elements per vector register
@@ -206,10 +212,10 @@ int main () {
         // Set vector length to 32 elements, e16, m1 (for VLEN=512: 512/16 = 32 elements per register)
         __asm__ volatile("vsetvli t0, t0, e16, m1, ta, ma" : : : "t0");  // This will set vl=32 for VLEN=512
         __asm__ volatile("\
-          li      t0, 0x80001000;\
+          li      t0, 0x8000a400;\
           vle16.v v0, (t0);\
         \
-          li      t2, 0x80001200;\
+          li      t2, 0x8000a600;\
           vle16.v v4, (t2);\
         ");
         
@@ -218,7 +224,7 @@ int main () {
         
         // Store result to memory
         __asm__("\
-          li      t0, 0x80001200;\
+          li      t0, 0x8000a600;\
           vse16.v v4, (t0);\
         ");
         
@@ -231,6 +237,7 @@ int main () {
             if ((result & 0xFF00) != (expected & 0xFF00)) {
                 uint16_t diff = (result > expected) ? (result - expected) : (expected - result);
                 if (diff > 0x0400) {  // Allow tolerance for EXP tests (increased due to more values tested)
+                    printf("EXP Test 4 failed at index %d: result=0x%04x, expected=0x%04x, diff=0x%04x\n", i, result, expected, diff);
                     REPORT_FAILURE(ERR_EXP);
                 }
             }
@@ -242,8 +249,8 @@ int main () {
     {
         // SOFTMAX instruction expects vector of BF16 values and computes softmax across vector
         // Test case 1: Random values from C_src/log/softmax_output.log - expanded for VLEN=512
-        volatile uint16_t* v0_data = (volatile uint16_t*)0x80001000;
-        volatile uint16_t* v4_data = (volatile uint16_t*)0x80001200;
+        volatile uint16_t* v0_data = (volatile uint16_t*)0x8000a800;
+        volatile uint16_t* v4_data = (volatile uint16_t*)0x8000aa00;
         
         // With VLEN=512 and e16, we can process up to 512/16 = 32 elements per vector register
         // Input values from C_src/log/softmax_output.log "Random [-2.0, 2.0]" test
@@ -266,10 +273,10 @@ int main () {
         __asm__ volatile("vsetvli t0, t0, e16, m1, ta, ma" : : : "t0");  // This will set vl=32 for VLEN=512
         
         __asm__ volatile("\
-          li      t0, 0x80001000;\
+          li      t0, 0x8000a800;\
           vle16.v v0, (t0);\
         \
-          li      t2, 0x80001200;\
+          li      t2, 0x8000aa00;\
           vle16.v v4, (t2);\
         ");
         
@@ -278,7 +285,7 @@ int main () {
         
         // Store result to memory
         __asm__("\
-          li      t0, 0x80001200;\
+          li      t0, 0x8000aa00;\
           vse16.v v4, (t0);\
         ");
         
@@ -305,18 +312,21 @@ int main () {
             if (result_high == expected_high || 
                 (result_high != 0 && expected_high != 0 && diff <= 0x0200)) {
                 valid_results++;
+            } else {
+                printf("SOFTMAX Test 5 case 1 failed at index %d: result=0x%04x, expected=0x%04x\n", i, result, expected);
             }
         }
         
         // Most results should be valid (at least 24 out of 32)
         if (valid_results < 24) {  // Increased threshold for 32-element test
+            printf("SOFTMAX Test 5 case 1 failed: only %d/%d results were valid\n", valid_results, 32);
             REPORT_FAILURE(ERR_SOFTMAX);
         }
         
         // Test case 2: Sequential Ascending values from C_src/log/softmax_output.log - expanded for VLEN=512
         // Use different memory region
-        volatile uint16_t* v8_data = (volatile uint16_t*)0x80001400;
-        volatile uint16_t* v12_data = (volatile uint16_t*)0x80001500;
+        volatile uint16_t* v8_data = (volatile uint16_t*)0x8000ac00;
+        volatile uint16_t* v12_data = (volatile uint16_t*)0x8000ae00;
         
         // Sequential ascending BF16 values from C_src/log/softmax_output.log
         uint16_t bf16_inputs2[32] = {0xbf2a, 0xbf2b, 0xbf2c, 0xbf2d, 0xbf2e, 0xbf2f, 0xbf30, 0xbf31,
@@ -335,10 +345,10 @@ int main () {
         // Load new vectors (using e16, m1 which for VLEN=512 will process 32 elements)
         __asm__ volatile("vsetvli t0, t0, e16, m1, ta, ma" : : : "t0");
         __asm__ volatile("\
-          li      t0, 0x80001400;\
+          li      t0, 0x8000ac00;\
           vle16.v v8, (t0);\
         \
-          li      t2, 0x80001500;\
+          li      t2, 0x8000ae00;\
           vle16.v v12, (t2);\
         ");
         
@@ -347,12 +357,12 @@ int main () {
         
         // Store result
         __asm__("\
-          li      t0, 0x80001500;\
+          li      t0, 0x8000ae00;\
           vse16.v v12, (t0);\
         ");
         
         // Verify results against expected outputs from C_src
-        int valid_results2 = 0;
+        int valid_results2 = 0;  // Count matching results
         for (int i = 0; i < 32; i++) {
             uint16_t result = v12_data[i];
             uint16_t expected = expected_outputs2[i];
@@ -368,11 +378,14 @@ int main () {
             if (result_high == expected_high || 
                 (result_high != 0 && expected_high != 0 && diff <= 0x0200)) {
                 valid_results2++;
+            } else {
+                printf("SOFTMAX Test 5 case 2 failed at index %d: result=0x%04x, expected=0x%04x\n", i, result, expected);
             }
         }
         
         // Most results should be valid (at least 24 out of 32)
         if (valid_results2 < 24) {  // Increased threshold for 32-element test
+            printf("SOFTMAX Test 5 case 2 failed: only %d/%d results were valid\n", valid_results2, 32);
             REPORT_FAILURE(ERR_SOFTMAX);
         }
     }
@@ -383,8 +396,8 @@ int main () {
     {
         // QUANT instruction quantizes BF16 to MxFP8 with scale
         // Test case 1: Basic quantization with non-zero mantissa - expanded for VLEN=512
-        volatile uint16_t* v0_data = (volatile uint16_t*)0x80001000;
-        volatile uint16_t* v4_data = (volatile uint16_t*)0x80001200;
+        volatile uint16_t* v0_data = (volatile uint16_t*)0x8000b000;
+        volatile uint16_t* v4_data = (volatile uint16_t*)0x8000b200;
         
         // With VLEN=512 and e16, we can process up to 512/16 = 32 elements per vector register
         // Input values from C_src/log/quant_output.log "BF16_Input" column (Block 0, Index 0-31)
@@ -412,10 +425,10 @@ int main () {
         __asm__ volatile("vsetvli t0, t0, e16, m1, ta, ma" : : : "t0");  // This will set vl=32 for VLEN=512
         
         __asm__ volatile("\
-          li      t0, 0x80001000;\
+          li      t0, 0x8000b000;\
           vle16.v v0, (t0);\
         \
-          li      t2, 0x80001200;\
+          li      t2, 0x8000b200;\
           vle16.v v4, (t2);\
         ");
         
@@ -424,7 +437,7 @@ int main () {
         
         // Store result to memory
         __asm__("\
-          li      t0, 0x80001200;\
+          li      t0, 0x8000b200;\
           vse16.v v4, (t0);\
         ");
         
@@ -438,18 +451,21 @@ int main () {
             uint8_t diff = (actual > expected) ? (actual - expected) : (expected - actual);
             if (diff <= 0x01) {  // Tight tolerance for quantization accuracy
                 valid_results++;
+            } else {
+                printf("QUANT Test 6 case 1 failed at index %d: actual=0x%02x, expected=0x%02x\n", i, actual, expected);
             }
         }
         
         // Most results should match expected values (at least 24 out of 32)
         if (valid_results < 24) {
+            printf("QUANT Test 6 case 1 failed: only %d/%d results were valid\n", valid_results, 32);
             REPORT_FAILURE(ERR_QUANT);
         }
         
         // Test case 2: Values from C_src test_quant.cpp - expanded for VLEN=512
         // Use different memory region
-        volatile uint16_t* v8_data = (volatile uint16_t*)0x80001400;
-        volatile uint16_t* v12_data = (volatile uint16_t*)0x80001500;
+        volatile uint16_t* v8_data = (volatile uint16_t*)0x8000b400;
+        volatile uint16_t* v12_data = (volatile uint16_t*)0x8000b600;
         
         // Use data from Block 1 of C_src/log/quant_output.log (Index 32-63)
         uint16_t bf16_inputs2[32] = {0x0020, 0x0021, 0x0022, 0x0023, 0x0024, 0x0025, 0x0026, 0x0027,
@@ -464,10 +480,10 @@ int main () {
         // Load new vectors (using e16, m1 which for VLEN=512 will process 32 elements)
         __asm__ volatile("vsetvli t0, t0, e16, m1, ta, ma" : : : "t0");  // This will set vl=32 for VLEN=512
         __asm__ volatile("\
-          li      t0, 0x80001400;\
+          li      t0, 0x8000b400;\
           vle16.v v8, (t0);\
         \
-          li      t2, 0x80001500;\
+          li      t2, 0x8000b600;\
           vle16.v v12, (t2);\
         ");
         
@@ -476,7 +492,7 @@ int main () {
         
         // Store result
         __asm__("\
-          li      t0, 0x80001500;\
+          li      t0, 0x8000b600;\
           vse16.v v12, (t0);\
         ");
         
@@ -496,11 +512,14 @@ int main () {
             uint8_t diff = (actual > expected) ? (actual - expected) : (expected - actual);
             if (diff <= 0x01) {  // Tight tolerance for quantization accuracy
                 valid_results2++;
+            } else {
+                printf("QUANT Test 6 case 2 failed at index %d: actual=0x%02x, expected=0x%02x\n", i, actual, expected);
             }
         }
         
         // Most results should match expected values (at least 24 out of 32)
         if (valid_results2 < 24) {
+            printf("QUANT Test 6 case 2 failed: only %d/%d results were valid\n", valid_results2, 32);
             REPORT_FAILURE(ERR_QUANT);
         }
     }
@@ -509,8 +528,8 @@ int main () {
     // NEW Test 7: Test EXP with LMUL = 1
     // ============================================
     {
-        volatile uint16_t* v8_data = (volatile uint16_t*)0x80001400;
-        volatile uint16_t* v12_data = (volatile uint16_t*)0x80001500;
+        volatile uint16_t* v8_data = (volatile uint16_t*)0x8000b800;
+        volatile uint16_t* v12_data = (volatile uint16_t*)0x8000bA00;
         
         // Additional test inputs: 2.0, -2.0, 0.25, -0.25 and more values for VLEN=512
         uint16_t bf16_inputs2[32] = {0x4000, 0xC000, 0x3E80, 0xBE80, 0x3F40, 0xBF40, 0x4040, 0xC040,
@@ -531,10 +550,10 @@ int main () {
         // Load new vectors (using e16, m1 which for VLEN=512 will process 32 elements)
         __asm__ volatile("vsetvli t0, t0, e16, m1, ta, ma" : : : "t0");
         __asm__ volatile("\
-          li      t0, 0x80001400;\
+          li      t0, 0x8000b800;\
           vle16.v v8, (t0);\
         \
-          li      t2, 0x80001500;\
+          li      t2, 0x8000bA00;\
           vle16.v v12, (t2);\
         ");
         
@@ -543,7 +562,7 @@ int main () {
         
         // Store result
         __asm__("\
-          li      t0, 0x80001500;\
+          li      t0, 0x8000ba00;\
           vse16.v v12, (t0);\
         ");
         
@@ -557,6 +576,7 @@ int main () {
                 // Allow for very small positive values or even zero due to precision errors for negative inputs
                 // Only fail if result is definitely negative (which shouldn't happen for exp function)
                 if ((result & 0x8000)) {  // Check if result is negative (shouldn't happen for exp)
+                    printf("EXP Test 7 failed at index %d: negative input %d but result is negative: result=0x%04x\n", i, bf16_inputs2[i], result);
                     REPORT_FAILURE(ERR_EXP);
                 }
             } else {  // positive inputs should produce positive values in expected range
@@ -565,6 +585,7 @@ int main () {
                 if ((result & 0xFF00) != (expected & 0xFF00)) {
                     uint16_t diff = (result > expected) ? (result - expected) : (expected - result);
                     if (diff > 0x0400) {  // If difference is more than tolerance
+                        printf("EXP Test 7 failed at index %d: result=0x%04x, expected=0x%04x, input=0x%04x, diff=0x%04x\n", i, result, expected, bf16_inputs2[i], diff);
                         REPORT_FAILURE(ERR_EXP);
                     }
                 }
@@ -577,21 +598,13 @@ int main () {
     // NEW Test 8: Test EXP with LMUL = 2
     // ============================================
     {
-        volatile uint16_t* v0_data = (volatile uint16_t*)0x80002400;  // Using new memory region to avoid conflicts
-        volatile uint16_t* v8_data = (volatile uint16_t*)0x80002600;
+        volatile uint16_t* v0_data = (volatile uint16_t*)0x8000bc00;  // Using new memory region to avoid conflicts
+        volatile uint16_t* v8_data = (volatile uint16_t*)0x8000be00;
         
         // Test with LMUL = 2
         __asm__ volatile("\
           li      t0, 0x600;\
           csrs    mstatus, t0;\
-        ");
-        
-        // Print LMUL configuration info by writing to tohost with unique value
-        __asm__ volatile("\
-          li      t1, 0x7002;\
-          li      t0, 0x80002400;\
-          sd      t1, 0(t0);\
-          fence;\
         ");
         
         // Input and expected outputs from src/top/custom/log/riscv_insn_array.log (Group 2 - expp, first 16 elements)
@@ -622,10 +635,10 @@ int main () {
         
         __asm__ volatile("vsetvli t0, t0, e16, m2, ta, ma" : : : "t0");
         __asm__ volatile("\
-          li      t0, 0x80002400;\
+          li      t0, 0x8000bc00;\
           vle16.v v0, (t0);\
         \
-          li      t2, 0x80002600;\
+          li      t2, 0x8000be00;\
           vle16.v v8, (t2);\
         ");
         
@@ -634,7 +647,7 @@ int main () {
         
         // Store result to memory
         __asm__("\
-          li      t0, 0x80002600;\
+          li      t0, 0x8000be00;\
           vse16.v v8, (t0);\
         ");
         
@@ -647,6 +660,7 @@ int main () {
             if ((result & 0xFF00) != (expected & 0xFF00)) {
                 uint16_t diff = (result > expected) ? (result - expected) : (expected - result);
                 if (diff > 0x0600) {  // Allow more tolerance for LMUL=2 due to potential approx errors
+                    printf("EXP Test 8 (LMUL=2) failed at index %d: result=0x%04x, expected=0x%04x, diff=0x%04x\n", i, result, expected, diff);
                     REPORT_FAILURE(ERR_EXP);
                 }
             }
@@ -657,21 +671,13 @@ int main () {
     // NEW Test 9: Test EXP with LMUL = 4
     // ============================================
     {
-        volatile uint16_t* v0_data = (volatile uint16_t*)0x80002800;  // Using new memory region to avoid conflicts
-        volatile uint16_t* v12_data = (volatile uint16_t*)0x80002A00;
+        volatile uint16_t* v0_data = (volatile uint16_t*)0x8000c000;  // Using new memory region to avoid conflicts
+        volatile uint16_t* v12_data = (volatile uint16_t*)0x8000c200;
         
         // Test with LMUL = 4
         __asm__ volatile("\
           li      t0, 0x600;\
           csrs    mstatus, t0;\
-        ");
-        
-        // Print LMUL configuration info by writing to tohost with unique value
-        __asm__ volatile("\
-          li      t1, 0x7004;\
-          li      t0, 0x80002800;\
-          sd      t1, 0(t0);\
-          fence;\
         ");
         
         // Input and expected outputs from src/top/custom/log/riscv_insn_array.log (Group 3 - expp, first 32 elements)
@@ -718,10 +724,10 @@ int main () {
         
         __asm__ volatile("vsetvli t0, t0, e16, m4, ta, ma" : : : "t0");
         __asm__ volatile("\
-          li      t0, 0x80002800;\
+          li      t0, 0x8000c000;\
           vle16.v v0, (t0);\
         \
-          li      t2, 0x80002A00;\
+          li      t2, 0x8000c200;\
           vle16.v v12, (t2);\
         ");
         
@@ -730,7 +736,7 @@ int main () {
         
         // Store result to memory
         __asm__("\
-          li      t0, 0x80002A00;\
+          li      t0, 0x8000c200;\
           vse16.v v12, (t0);\
         ");
         
@@ -743,6 +749,7 @@ int main () {
             if ((result & 0xFF00) != (expected & 0xFF00)) {
                 uint16_t diff = (result > expected) ? (result - expected) : (expected - result);
                 if (diff > 0x0800) {  // Allow more tolerance for LMUL=4 due to potential approx errors
+                    printf("EXP Test 9 (LMUL=4) failed at index %d: result=0x%04x, expected=0x%04x, diff=0x%04x\n", i, result, expected, diff);
                     REPORT_FAILURE(ERR_EXP);
                 }
             }
@@ -753,21 +760,13 @@ int main () {
     // NEW Test 10: Test EXP with LMUL = 8
     // ============================================
     {
-        volatile uint16_t* v0_data = (volatile uint16_t*)0x80002C00;  // Using new memory region to avoid conflicts
-        volatile uint16_t* v16_data = (volatile uint16_t*)0x80002E00;
+        volatile uint16_t* v0_data = (volatile uint16_t*)0x8000c400;  // Using new memory region to avoid conflicts
+        volatile uint16_t* v16_data = (volatile uint16_t*)0x8000c600;
         
         // Test with LMUL = 8
         __asm__ volatile("\
           li      t0, 0x600;\
           csrs    mstatus, t0;\
-        ");
-        
-        // Print LMUL configuration info by writing to tohost with unique value
-        __asm__ volatile("\
-          li      t1, 0x7008;\
-          li      t0, 0x80002C00;\
-          sd      t1, 0(t0);\
-          fence;\
         ");
         
         uint16_t bf16_inputs[256] = {
@@ -845,10 +844,10 @@ int main () {
         
         __asm__ volatile("vsetvli t0, t0, e16, m8, ta, ma" : : : "t0");
         __asm__ volatile("\
-          li      t0, 0x80002C00;\
+          li      t0, 0x8000c400;\
           vle16.v v0, (t0);\
         \
-          li      t2, 0x80002E00;\
+          li      t2, 0x8000c600;\
           vle16.v v16, (t2);\
         ");
         
@@ -857,7 +856,7 @@ int main () {
         
         // Store result to memory
         __asm__("\
-          li      t0, 0x80002E00;\
+          li      t0, 0x8000c600;\
           vse16.v v16, (t0);\
         ");
         
@@ -870,6 +869,7 @@ int main () {
                 if ((result & 0xFF00) != (expected & 0xFF00)) {
                     uint16_t diff = (result > expected) ? (result - expected) : (expected - result);
                     if (diff > 0x0A00) {  // Allow more tolerance for LMUL=8 due to potential approx errors
+                        printf("EXP Test 10 (LMUL=8) failed at index %d: result=0x%04x, expected=0x%04x, diff=0x%04x\n", i, result, expected, diff);
                         REPORT_FAILURE(ERR_EXP);
                     }
                 }
@@ -879,23 +879,14 @@ int main () {
     // NEW Test 11: Test SOFTMAX with LMUL = 1
     // ============================================
     {
-        volatile uint16_t* v0_data = (volatile uint16_t*)0x80003000;  // Using new memory region to avoid conflicts
-        volatile uint16_t* v4_data = (volatile uint16_t*)0x80003200;
+        volatile uint16_t* v0_data = (volatile uint16_t*)0x8000c800;  // Using new memory region to avoid conflicts
+        volatile uint16_t* v4_data = (volatile uint16_t*)0x8000ca00;
         
         // Test with LMUL = 1
         __asm__ volatile("\
           li      t0, 0x600;\
           csrs    mstatus, t0;\
         ");
-        
-        // Print LMUL configuration info
-        __asm__ volatile("\
-          li      t1, 0x7101;\
-          li      t0, 0x80003008;\
-          sd      t1, 0(t0);\
-          fence;\
-        ");
-        
         
         // Test inputs and expected outputs from src/top/custom/log/riscv_insn_array.log (Group 1 - softmax_output_m1, first 8 elements)
         uint16_t bf16_inputs[8] = {0xbf2a, 0xbf2b, 0xbf2c, 0xbf2d, 0xbf2e, 0xbf2f, 0xbf30, 0xbf31}; // From actual log data
@@ -907,10 +898,10 @@ int main () {
         
         __asm__ volatile("vsetvli t0, t0, e16, m1, ta, ma" : : : "t0");
         __asm__ volatile("\
-          li      t0, 0x80003000;\
+          li      t0, 0x8000c800;\
           vle16.v v0, (t0);\
         \
-          li      t2, 0x80003200;\
+          li      t2, 0x8000ca00;\
           vle16.v v4, (t2);\
         ");
         
@@ -919,7 +910,7 @@ int main () {
         
         // Store result to memory
         __asm__("\
-          li      t0, 0x80003200;\
+          li      t0, 0x8000ca00;\
           vse16.v v4, (t0);\
         ");
         
@@ -940,11 +931,14 @@ int main () {
             if (result_high == expected_high || 
                 (result_high != 0 && expected_high != 0 && diff <= 0x0200)) {
                 valid_results++;
+            } else {
+                printf("SOFTMAX Test 11 (LMUL=1) failed at index %d: result=0x%04x, expected=0x%04x\n", i, result, expected);
             }
         }
         
         // At least some results should be valid
         if (valid_results < 6) {  // Require most results to be close to expected
+            printf("SOFTMAX Test 11 (LMUL=1) failed: only %d/%d results were valid\n", valid_results, 8);
             REPORT_FAILURE(ERR_SOFTMAX);
         }
     }
@@ -954,21 +948,13 @@ int main () {
     // NEW Test 12: Test SOFTMAX with LMUL = 2
     // ============================================
     {
-        volatile uint16_t* v0_data = (volatile uint16_t*)0x80003400;  // Using new memory region to avoid conflicts
-        volatile uint16_t* v8_data = (volatile uint16_t*)0x80003600;
+        volatile uint16_t* v0_data = (volatile uint16_t*)0x8000cc00;  // Using new memory region to avoid conflicts
+        volatile uint16_t* v8_data = (volatile uint16_t*)0x8000ce00;
         
         // Test with LMUL = 2
         __asm__ volatile("\
           li      t0, 0x600;\
           csrs    mstatus, t0;\
-        ");
-        
-        // Print LMUL configuration info
-        __asm__ volatile("\
-          li      t1, 0x7102;\
-          li      t0, 0x80003400;\
-          sd      t1, 0(t0);\
-          fence;\
         ");
         
         // Input and expected outputs from src/top/custom/log/riscv_insn_array.log (Group 2 - softmax_output_m1, first 16 elements)
@@ -983,10 +969,10 @@ int main () {
         
         __asm__ volatile("vsetvli t0, t0, e16, m2, ta, ma" : : : "t0");
         __asm__ volatile("\
-          li      t0, 0x80003400;\
+          li      t0, 0x8000cc00;\
           vle16.v v0, (t0);\
         \
-          li      t2, 0x80003600;\
+          li      t2, 0x8000ce00;\
           vle16.v v8, (t2);\
         ");
         
@@ -995,7 +981,7 @@ int main () {
         
         // Store result to memory
         __asm__("\
-          li      t0, 0x80003600;\
+          li      t0, 0x8000ce00;\
           vse16.v v8, (t0);\
         ");
         
@@ -1016,11 +1002,14 @@ int main () {
             if (result_high == expected_high || 
                 (result_high != 0 && expected_high != 0 && diff <= 0x0200)) {
                 valid_results++;
+            } else {
+                printf("SOFTMAX Test 12 (LMUL=2) failed at index %d: result=0x%04x, expected=0x%04x\n", i, result, expected);
             }
         }
         
         // Most results should be valid (at least 12 out of 16)
         if (valid_results < 12) {  // Increased threshold for 16-element test
+            printf("SOFTMAX Test 12 (LMUL=2) failed: only %d/%d results were valid\n", valid_results, 16);
             REPORT_FAILURE(ERR_SOFTMAX);
         }
     }
@@ -1029,21 +1018,13 @@ int main () {
     // NEW Test 13: Test SOFTMAX with LMUL = 4
     // ============================================
     {
-        volatile uint16_t* v0_data  = (volatile uint16_t*)0x80003800;  // Using new memory region to avoid conflicts
-        volatile uint16_t* v12_data = (volatile uint16_t*)0x80003A00;
+        volatile uint16_t* v0_data  = (volatile uint16_t*)0x8000d000;  // Using new memory region to avoid conflicts
+        volatile uint16_t* v12_data = (volatile uint16_t*)0x8000d200;
         
         // Test with LMUL = 4
         __asm__ volatile("\
           li      t0, 0x600;\
           csrs    mstatus, t0;\
-        ");
-        
-        // Print LMUL configuration info
-        __asm__ volatile("\
-          li      t1, 0x7104;\
-          li      t0, 0x80003800;\
-          sd      t1, 0(t0);\
-          fence;\
         ");
         
         uint16_t bf16_inputs[128] = {
@@ -1090,10 +1071,10 @@ int main () {
         
         __asm__ volatile("vsetvli t0, t0, e16, m4, ta, ma" : : : "t0");
         __asm__ volatile("\
-          li      t0, 0x80003800;\
+          li      t0, 0x8000d000;\
           vle16.v v0, (t0);\
         \
-          li      t2, 0x80003A00;\
+          li      t2, 0x8000d200;\
           vle16.v v12, (t2);\
         ");
         
@@ -1102,7 +1083,7 @@ int main () {
         
         // Store result to memory
         __asm__("\
-          li      t0, 0x80003A00;\
+          li      t0, 0x8000d200;\
           vse16.v v12, (t0);\
         ");
         
@@ -1123,10 +1104,13 @@ int main () {
             if (result_high == expected_high || 
                 (result_high != 0 && expected_high != 0 && diff <= 0x0200)) {
                 valid_results++;
+            } else {
+                printf("SOFTMAX Test 13 (LMUL=4) failed at index %d: result=0x%04x, expected=0x%04x\n", i, result, expected);
             }
         }
         
         if (valid_results < 24) {  // Increased threshold for 128-element test
+            printf("SOFTMAX Test 13 (LMUL=4) failed: only %d/%d results were valid\n", valid_results, 128);
             REPORT_FAILURE(ERR_SOFTMAX);
         }
     }
@@ -1135,21 +1119,13 @@ int main () {
     // NEW Test 14: Test SOFTMAX with LMUL = 8
     // ============================================
     {
-        volatile uint16_t* v0_data  = (volatile uint16_t*)0x80003C00;  // Using new memory region to avoid conflicts
-        volatile uint16_t* v16_data = (volatile uint16_t*)0x80004000;
+        volatile uint16_t* v0_data  = (volatile uint16_t*)0x8000d400;  // Using new memory region to avoid conflicts
+        volatile uint16_t* v16_data = (volatile uint16_t*)0x8000d600;
         
         // Test with LMUL = 8
         __asm__ volatile("\
           li      t0, 0x600;\
           csrs    mstatus, t0;\
-        ");
-        
-        // Print LMUL configuration info
-        __asm__ volatile("\
-          li      t1, 0x7108;\
-          li      t0, 0x80003C00;\
-          sd      t1, 0(t0);\
-          fence;\
         ");
         
         uint16_t bf16_inputs[256] = {
@@ -1228,10 +1204,10 @@ int main () {
         
         __asm__ volatile("vsetvli t0, t0, e16, m8, ta, ma" : : : "t0");
         __asm__ volatile("\
-          li      t0, 0x80003C00;\
+          li      t0, 0x8000d400;\
           vle16.v v0, (t0);\
         \
-          li      t2, 0x80003E00;\
+          li      t2, 0x8000d600;\
           vle16.v v16, (t2);\
         ");
         
@@ -1240,7 +1216,7 @@ int main () {
         
         // Store result to memory
         __asm__("\
-          li      t0, 0x80003E00;\
+          li      t0, 0x8000d600;\
           vse16.v v16, (t0);\
         ");
         
@@ -1261,10 +1237,13 @@ int main () {
             if (result_high == expected_high || 
                 (result_high != 0 && expected_high != 0 && diff <= 0x0200)) {
                 valid_results++;
+            } else {
+                printf("SOFTMAX Test 14 (LMUL=8) failed at index %d: result=0x%04x, expected=0x%04x\n", i, result, expected);
             }
         }
         
         if (valid_results < 48) {  // Increased threshold for 64-element test
+            printf("SOFTMAX Test 14 (LMUL=8) failed: only %d/%d results were valid\n", valid_results, 256);
             REPORT_FAILURE(ERR_SOFTMAX);
         }
     }
@@ -1273,21 +1252,13 @@ int main () {
     // NEW Test 15: Test QUANT with LMUL = 1
     // ============================================
     {
-        volatile uint16_t* v0_data = (volatile uint16_t*)0x80004000;  // Using new memory region to avoid conflicts
-        volatile uint16_t* v4_data = (volatile uint16_t*)0x80004200;
+        volatile uint16_t* v0_data = (volatile uint16_t*)0x8000d800;  // Using new memory region to avoid conflicts
+        volatile uint16_t* v4_data = (volatile uint16_t*)0x8000da00;
         
         // Test with LMUL = 1
         __asm__ volatile("\
           li      t0, 0x600;\
           csrs    mstatus, t0;\
-        ");
-        
-        // Print LMUL configuration info
-        __asm__ volatile("\
-          li      t1, 0x7201;\
-          li      t0, 0x80004010;\
-          sd      t1, 0(t0);\
-          fence;\
         ");
         
         // Test inputs: 1.001, 2.002, 3.003, 4.004 (from SPIKE log observations)
@@ -1311,10 +1282,10 @@ int main () {
         
         __asm__ volatile("vsetvli t0, t0, e16, m1, ta, ma" : : : "t0");
         __asm__ volatile("\
-          li      t0, 0x80004000;\
+          li      t0, 0x8000d800;\
           vle16.v v0, (t0);\
         \
-          li      t2, 0x80004200;\
+          li      t2, 0x8000da00;\
           vle16.v v4, (t2);\
         ");
         
@@ -1323,7 +1294,7 @@ int main () {
         
         // Store result to memory
         __asm__("\
-          li      t0, 0x80004200;\
+          li      t0, 0x8000da00;\
           vse16.v v4, (t0);\
         ");
         
@@ -1339,6 +1310,7 @@ int main () {
                 // Only fail if we expected a non-zero result but got zero
                 uint8_t diff = (result > expected) ? (result - expected) : (expected - result);
                 if (diff > 0x35) {  // Allow larger tolerance for quantization
+                    printf("QUANT Test 15 (LMUL=1) failed at index %d: result=0x%02x, expected=0x%02x\n", i, result, expected);
                     REPORT_FAILURE(ERR_QUANT);
                 }
             }
@@ -1346,6 +1318,7 @@ int main () {
             // Check if result is in reasonable range (allowing for approximation tolerance)
             uint8_t diff = (result > expected) ? (result - expected) : (expected - result);
             if (diff > 0x30) {  // Allow more tolerance for quantization differences
+                printf("QUANT Test 15 (LMUL=1) failed at index %d: result=0x%02x, expected=0x%02x\n", i, result, expected);
                 REPORT_FAILURE(ERR_QUANT);
             }
         }
@@ -1356,21 +1329,13 @@ int main () {
     // NEW Test 16: Test QUANT with LMUL = 2
     // ============================================
     {
-        volatile uint16_t* v0_data = (volatile uint16_t*)0x80004400;  // Using new memory region to avoid conflicts
-        volatile uint16_t* v8_data = (volatile uint16_t*)0x80004600;
+        volatile uint16_t* v0_data = (volatile uint16_t*)0x8000dc00;  // Using new memory region to avoid conflicts
+        volatile uint16_t* v8_data = (volatile uint16_t*)0x8000de00;
         
         // Test with LMUL = 2
         __asm__ volatile("\
           li      t0, 0x600;\
           csrs    mstatus, t0;\
-        ");
-        
-        // Print LMUL configuration info
-        __asm__ volatile("\
-          li      t1, 0x7202;\
-          li      t0, 0x80004400;\
-          sd      t1, 0(t0);\
-          fence;\
         ");
         
         uint16_t bf16_inputs[64] = {
@@ -1400,10 +1365,10 @@ int main () {
         
         __asm__ volatile("vsetvli t0, t0, e16, m2, ta, ma" : : : "t0");
         __asm__ volatile("\
-          li      t0, 0x80004400;\
+          li      t0, 0x8000dc00;\
           vle16.v v0, (t0);\
         \
-          li      t2, 0x80004600;\
+          li      t2, 0x8000de00;\
           vle16.v v8, (t2);\
         ");
         
@@ -1412,7 +1377,7 @@ int main () {
         
         // Store result to memory
         __asm__("\
-          li      t0, 0x80004600;\
+          li      t0, 0x8000de00;\
           vse16.v v8, (t0);\
         ");
         
@@ -1428,6 +1393,7 @@ int main () {
                 // Only fail if we expected a non-zero result but got zero
                 uint8_t diff = (result > expected) ? (result - expected) : (expected - result);
                 if (diff > 0x40) {  // Allow larger tolerance for quantization
+                    printf("QUANT Test 16 (LMUL=2) failed at index %d: result=0x%02x, expected=0x%02x\n", i, result, expected);
                     REPORT_FAILURE(ERR_QUANT);
                 }
             }
@@ -1435,6 +1401,7 @@ int main () {
             // Check if result is in reasonable range (allowing for approximation tolerance)
             uint8_t diff = (result > expected) ? (result - expected) : (expected - result);
             if (diff > 0x35) {  // Allow more tolerance for quantization differences with LMUL=2
+                printf("QUANT Test 16 (LMUL=2) failed at index %d: result=0x%02x, expected=0x%02x\n", i, result, expected);
                 REPORT_FAILURE(ERR_QUANT);
             }
         }

@@ -69,6 +69,21 @@
 │   │   └── README.md       # 详细使用说明
 │   ├── top/                # 静态链接 Spike 集成 + AI 扩展
 │   │   ├── build/          # 构建输出目录
+│   │   ├── custom/         # 自定义 RISC-V 扩展实现 (copied from C_src)
+│   │   │   ├── config.h    # 配置文件
+│   │   │   ├── util.c/h    # 工具函数
+│   │   │   ├── riscv/      # RISC-V 向量扩展实现
+│   │   │   │   ├── BF16.cpp/hpp    # BFloat16 处理单元
+│   │   │   │   ├── custom_expp.cpp/hpp # BF16 e^x 近似计算
+│   │   │   │   ├── MxFp8ActQuant.cpp/hpp # MXFP8 量化核心
+│   │   │   │   ├── SoftmaxCore.cpp/hpp # Softmax 计算核心
+│   │   │   │   ├── main_expp.cpp   # exp 单元测试主程序
+│   │   │   │   ├── main_quant.cpp  # quant 单元测试主程序
+│   │   │   │   └── main_softmax.cpp # softmax 单元测试主程序
+│   │   │   │   └── single_expp.cpp # 单值 exp 调试程序
+│   │   │   ├── gemm/       # GEMM 运算实现
+│   │   │   ├── log/        # 测试日志输出
+│   │   │   └── script/     # 数据处理脚本
 │   │   ├── extensions/     # 自定义扩展实现
 │   │   │   ├── BF16.cpp/hpp # BFloat16 处理单元
 │   │   │   ├── custom_expp.cpp/hpp # BF16 e^x 近似计算
@@ -86,6 +101,7 @@
 │   │   │   ├── main.c      # 测试程序（包含 exp/softmax/quant 测试）
 │   │   │   ├── start.S     # 启动代码
 │   │   │   ├── script.ld   # 链接脚本
+│   │   │   ├── util.c/h    # 工具函数
 │   │   │   └── Makefile    # 固件构建配置
 │   │   ├── spike_main.cc   # 自定义 Spike 主程序
 │   │   └── Makefile        # 静态链接构建配置
@@ -191,6 +207,22 @@ cd src/top
 make spike_build  # 构建 Spike 库
 make              # 构建静态链接的 top-main
 make run          # 运行包含 exp/softmax/quant 指令的测试程序（生成 log.txt 日志）
+
+# 或使用统一构建目录中的文件运行测试
+make run-build    # 使用 build/ 目录中的文件运行测试
+```
+
+#### 静态链接 Spike 演示（包含 AI 指令扩展）
+
+```bash
+# 使用统一构建脚本
+bash build_all.sh --run-tests
+
+# 或者手动构建
+cd src/top
+make spike_build  # 构建 Spike 库
+make              # 构建静态链接的 top-main
+make run          # 运行包含 exp/softmax/quant 指令的测试程序（生成 log.txt 日志）
 ```
 
 ### 5. 运行特定扩展测试
@@ -230,10 +262,12 @@ make all
 - `bash build_all.sh --firmware` - 仅构建固件
 - `bash build_all.sh --top` - 仅构建顶层包装器
 - `bash build_all.sh --help` - 显示帮助信息
+- `bash build_all.sh --riscv PATH` - 设置 RISC-V 工具链路径
+- `bash build_all.sh --spike-src PATH` - 设置 Spike 源码路径
 
 ### Spike 构建配置
 
-Spike 作为子模块位于 `riscv-isa-sim/` 目录。构建过程会自动配置和安装到 `riscv-isa-sim/install`。
+Spike 作为子模块位于 `riscv-isa-sim/` 目录。构建过程会自动配置和安装到 `build/spike-install`。
 
 关键环境变量（通过 `set-env.sh` 设置）：
 - `SPIKE_INSTALL_DIR`: Spike 安装目录
@@ -260,6 +294,7 @@ Spike 作为子模块位于 `riscv-isa-sim/` 目录。构建过程会自动配�
 - `make spike_build`: 构建并安装 Spike 库
 - `make reconfigure_spike`: 重新配置 Spike 构建
 - `make run`: 运行测试程序（使用完整指令集，包含 AI 指令）
+- `make run-build`: 使用构建目录中的文件运行测试
 - `make clean`: 清理生成文件
 - `make clean_spike`: 清理 Spike 构建
 - `make distclean`: 清理所有生成文件
@@ -269,6 +304,7 @@ Spike 作为子模块位于 `riscv-isa-sim/` 目录。构建过程会自动配�
 - 支持 `--isa=rv64imafdcv_zvl512b_zicsr_xperia_xperiv` 指令集
 - 无需动态加载扩展库
 - 测试固件自动编译并链接
+- 包含对不同 LMUL 配置（1/2/4/8）的全面测试支持
 
 ### SystemC 集成构建
 
@@ -331,6 +367,18 @@ make           # 构建测试程序 main.elf
 2. 参考 `xperia.cc` 和 `xperiv.cc` 实现扩展（需实现指令解码、执行和反汇编）
 3. 通过静态链接方式加载
 4. 提供对应的测试软件（参考 `src/top/firmware/main.c`）
+5. 将算法实现从 `C_src/riscv/` 复制到 `src/top/custom/riscv/` 目录中，避免外部依赖
+
+### 自定义扩展目录结构
+
+项目采用双目录结构来 maintain 算法实现：
+- `C_src/riscv/`: 独立的算法实现和单元测试
+- `src/top/custom/riscv/`: 为 Spike 静态链接复制的算法实现
+
+这种结构允许：
+- 独立的算法开发和测试（在 C_src 中）
+- 与 Spike 静态链接时的自包含实现（在 src/top/custom 中）
+- 避免构建时的外部依赖问题
 
 ## 开发约定
 
@@ -460,7 +508,7 @@ make single ARGS=0x3F80  # 运行单值 exp 测试 (输入 1.0)
 - **Test 11-14**: SOFTMAX instruction with LMUL=1, 2, 4, 8
 - **Test 15-18**: QUANT instruction with LMUL=1, 2, 4, 8
 
-Each test verifies the instruction with different vector lengths, ensuring correct operation across all supported vector configurations.
+Each test verifies the instruction with different vector lengths, ensuring correct operation across all supported vector configurations. The tests use actual log data from the C_src unit tests to validate the hardware implementation against expected outputs.
 
 ## 故障排除
 
@@ -541,15 +589,17 @@ ls riscv-isa-sim/install/bin/spike 2>/dev/null || echo "Spike not installed"
 6. **完整测试框架**: 包含预期结果校验和错误报告机制
 7. **LMUL 测试覆盖**: 增加了对不同向量长度乘数 (1/2/4/8) 的测试
 8. **指令编码参考**: 根据 docs/insn-decode.jpg, docs/insn.jpg 实现扩展
-9. **算法集成**: 将 C_src 中的代码复制到 top 扩展目录，不再依赖外部目录
+9. **算法集成**: 将 C_src 中的代码复制到 `src/top/custom/riscv/` 目录，不再依赖外部目录
 10. **扩展测试**: 提取 C_src 中对应 main 函数中的测试方法到测试函数中
 11. **Firmware 复杂测试**: 增加更多测试到 firmware 中来测试新增的指令 quant/exp/softmax
+12. **Custom 目录**: 创建 `src/top/custom/` 目录，包含完整的 RISC-V 扩展算法实现
 
 ### 修复改进
 1. **Commit Log 问题**: 修复了 EXP/softmax/quant 指令在日志中不显示的问题
 2. **指令打印格式**: 修复了一元操作指令（如 quant, exp）的打印格式
 3. **算法集成**: 将 C_src 中的算法实现直接集成到扩展中
 4. **测试验证**: 增强了测试用例，包括不同 LMUL 配置下的验证
+5. **目录结构**: 改进了目录结构，将算法实现与扩展实现分离
 
 ### 使用建议
 - 对于生产环境，推荐使用 `build_all.sh` 统一构建系统

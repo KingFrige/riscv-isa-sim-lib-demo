@@ -39,7 +39,7 @@ LFLAGS += -mcmodel=medany
 
 INCLUDE = -I.
 
-C_SRC = ./main.c
+C_SRC = ./printf.c ./main.c
 S_SRC = ./start.S
 
 OBJS += $(O)/$(S_SRC:.S=.o)

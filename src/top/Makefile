@@ -122,7 +122,7 @@ build_test: $(TARGET)
 # Run with build directory paths
 .PHONY: run-build
 run-build: 
-	$(BUILD_DIR)/top-main --isa=rv64imafdcv_zvl512b_zicsr_xperia_xperiv -l --log=$(BUILD_DIR)/log.txt --log-commits --instructions=20000 $(BUILD_DIR)/firmware/main.elf
+	$(BUILD_DIR)/top-main --isa=rv64imafdcv_zvl512b_zicsr_xperia_xperiv -l --log=$(BUILD_DIR)/log.txt --log-commits --instructions=80000 $(BUILD_DIR)/firmware/main.elf
 
 # Rule to ensure test program is built
 $(TEST_ELF): build_test
