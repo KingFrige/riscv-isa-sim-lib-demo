@@ -30,22 +30,22 @@ void on_command_complete(uint32_t command, uint32_t response) {
               << " completed with response 0x" << response << std::dec << std::endl;
     
     switch (response) {
-        case 0x00000000:
+        case mailbox_t::MAILBOX_SUCCESS:
             std::cout << "[Callback] SUCCESS" << std::endl;
             break;
-        case 0x00000001:
+        case mailbox_t::MAILBOX_ERR_INVALID_CMD:
             std::cout << "[Callback] INVALID COMMAND" << std::endl;
             break;
-        case 0x00000002:
+        case mailbox_t::MAILBOX_ERR_INVALID_PARAM:
             std::cout << "[Callback] INVALID PARAMETER" << std::endl;
             break;
-        case 0x00000003:
+        case mailbox_t::MAILBOX_ERR_MEM_ACCESS:
             std::cout << "[Callback] MEMORY ACCESS ERROR" << std::endl;
             break;
-        case 0x00000004:
+        case mailbox_t::MAILBOX_ERR_VECTOR_CONFIG:
             std::cout << "[Callback] VECTOR CONFIG ERROR" << std::endl;
             break;
-        case 0x00000005:
+        case mailbox_t::MAILBOX_ERR_NOT_IMPLEMENTED:
             std::cout << "[Callback] NOT IMPLEMENTED" << std::endl;
             break;
         default:
@@ -152,9 +152,9 @@ struct TestResult {
 TestResult test_hello_command(SpikeWrapper& wrapper) {
     std::cout << "\n--- Testing HELLO command ---" << std::endl;
     
-    uint32_t response = wrapper.send_hello();
+    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_HELLO);
     
-    if (response == 0x00000000) {
+    if (response == mailbox_t::MAILBOX_SUCCESS) {
         return TestResult("HELLO command", true, "Executed successfully");
     } else {
         return TestResult("HELLO command", false, "Failed", response);
@@ -167,9 +167,9 @@ TestResult test_hello_command(SpikeWrapper& wrapper) {
 TestResult test_hi_command(SpikeWrapper& wrapper) {
     std::cout << "\n--- Testing HI command ---" << std::endl;
     
-    uint32_t response = wrapper.send_hi();
+    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_HI);
     
-    if (response == 0x00000000) {
+    if (response == mailbox_t::MAILBOX_SUCCESS) {
         return TestResult("HI command", true, "Executed successfully");
     } else {
         return TestResult("HI command", false, "Failed", response);
@@ -186,9 +186,9 @@ TestResult test_vector_load_command(SpikeWrapper& wrapper) {
     TestBuffer buffer(1024, "Vector Load Test");
     buffer.print_info();
     
-    uint32_t response = wrapper.send_vector_load(buffer.address(), buffer.size(), 0);
+    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_VECTOR_LOAD, buffer.address(), buffer.size(), 0);
     
-    if (response == 0x00000000) {
+    if (response == mailbox_t::MAILBOX_SUCCESS) {
         return TestResult("VECTOR LOAD command", true, "Executed successfully");
     } else {
         return TestResult("VECTOR LOAD command", false, "Failed", response);
@@ -205,9 +205,9 @@ TestResult test_vector_store_command(SpikeWrapper& wrapper) {
     TestBuffer buffer(512, "Vector Store Test");
     buffer.print_info();
     
-    uint32_t response = wrapper.send_vector_store(buffer.address(), buffer.size(), 0);
+    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_VECTOR_STORE, buffer.address(), buffer.size(), 0);
     
-    if (response == 0x00000000) {
+    if (response == mailbox_t::MAILBOX_SUCCESS) {
         return TestResult("VECTOR STORE command", true, "Executed successfully");
     } else {
         return TestResult("VECTOR STORE command", false, "Failed", response);
@@ -224,9 +224,9 @@ TestResult test_vector_compute_command(SpikeWrapper& wrapper) {
     TestBuffer buffer(256, "Vector Compute Test");
     buffer.print_info();
     
-    uint32_t response = wrapper.send_vector_compute(buffer.address(), buffer.size(), 0);
+    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_VECTOR_COMPUTE, buffer.address(), buffer.size(), 0);
     
-    if (response == 0x00000000) {
+    if (response == mailbox_t::MAILBOX_SUCCESS) {
         return TestResult("VECTOR COMPUTE command", true, "Executed successfully");
     } else {
         return TestResult("VECTOR COMPUTE command", false, "Failed", response);
@@ -274,9 +274,9 @@ TestResult test_softmax_command(SpikeWrapper& wrapper) {
     }
     std::cout << "]" << std::endl;
     
-    uint32_t response = wrapper.send_softmax(buffer.address(), buffer.size(), 0);
+    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_SOFTMAX, buffer.address(), buffer.size(), 0);
     
-    if (response == 0x00000000) {
+    if (response == mailbox_t::MAILBOX_SUCCESS) {
         return TestResult("SOFTMAX command", true, "Executed successfully");
     } else {
         return TestResult("SOFTMAX command", false, "Failed", response);
@@ -292,7 +292,7 @@ TestResult test_invalid_command(SpikeWrapper& wrapper) {
     uint32_t response = wrapper.send_command(0xFFFFFFFF);
     
     // 无效命令应该返回错误
-    if (response == 0x00000001) {  // MAILBOX_ERR_INVALID_CMD
+    if (response == mailbox_t::MAILBOX_ERR_INVALID_CMD) {
         return TestResult("INVALID command", true, "Correctly rejected");
     } else {
         return TestResult("INVALID command", false, "Unexpected response", response);
@@ -309,7 +309,7 @@ TestResult test_performance(SpikeWrapper& wrapper) {
     auto start = std::chrono::high_resolution_clock::now();
     
     for (int i = 0; i < num_iterations; i++) {
-        wrapper.send_hello();
+        wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_HELLO);
     }
     
     auto end = std::chrono::high_resolution_clock::now();
@@ -344,14 +344,14 @@ struct TestCase {
 /**
  * @brief 运行所有测试
  */
-int run_all_tests(const std::vector<TestCase>& test_cases, 
-                  const std::string& firmware_path = "../install/firmware/firmware.hex") {
-    std::cout << "========================================" << std::endl;
+int run_all_tests(const std::vector<TestCase>& test_cases,
+                  const std::string& firmware_path = "",
+                  const std::vector<std::string>& spike_args = {}) {    std::cout << "========================================" << std::endl;
     std::cout << "Spike Wrapper Unified Test Program" << std::endl;
     std::cout << "========================================" << std::endl;
     
     try {
-        // 创建 SpikeWrapper 实例
+        // 创建 SpikeWrapper 实例（不指定固件路径，因为ELF会通过参数传入）
         SpikeWrapper wrapper(firmware_path, MAILBOX_BASE);
         
         // 设置回调函数
@@ -364,9 +364,9 @@ int run_all_tests(const std::vector<TestCase>& test_cases,
         // 设置命令超时为 2 秒
         wrapper.set_command_timeout(2000);
         
-        // 启动 Spike 模拟器
+        // 启动 Spike 模拟器（传递参数）
         std::cout << "Starting Spike simulator..." << std::endl;
-        if (!wrapper.start()) {
+        if (!wrapper.start(spike_args)) {
             std::cerr << "Failed to start Spike simulator" << std::endl;
             return 1;
         }
@@ -375,6 +375,11 @@ int run_all_tests(const std::vector<TestCase>& test_cases,
         std::cout << "Waiting for Spike initialization..." << std::endl;
         std::this_thread::sleep_for(1s);
         
+        // 如果提供了固件路径，使用ELF加载功能（如果SpikeWrapper支持的话）
+        if (!firmware_path.empty()) {
+            std::cout << "Loading program from: " << firmware_path << std::endl;
+        }
+
         // 运行所有测试用例
         std::vector<TestResult> results;
         int passed_count = 0;
@@ -465,18 +470,25 @@ int main(int argc, char* argv[]) {
     };
     
     // 检查命令行参数
-    std::string firmware_path = "../install/firmware/firmware.hex";
+    std::string firmware_path = "";
     bool run_all = true;
+    std::vector<std::string> spike_args;
     
-    if (argc > 1) {
-        std::string arg = argv[1];
+    // 解析命令行参数
+    for (int i = 1; i < argc; i++) {
+        std::string arg = argv[i];
+        
         if (arg == "--help" || arg == "-h") {
-            std::cout << "Usage: " << argv[0] << " [options]" << std::endl;
+            std::cout << "Usage: " << argv[0] << " [firmware.elf] [options]" << std::endl;
             std::cout << "Options:" << std::endl;
             std::cout << "  --help, -h       Show this help message" << std::endl;
             std::cout << "  --firmware PATH  Specify firmware path" << std::endl;
             std::cout << "  --list           List all test cases" << std::endl;
             std::cout << "  --test NAME      Run specific test case" << std::endl;
+            std::cout << "  -l               Enable execution log" << std::endl;
+            std::cout << "  --log=PATH       Enable execution log to file" << std::endl;
+            std::cout << "  --log-commits    Enable commit log" << std::endl;
+            std::cout << "  --debug          Enable debug output" << std::endl;
             return 0;
         } else if (arg == "--list") {
             std::cout << "Available test cases:" << std::endl;
@@ -484,17 +496,33 @@ int main(int argc, char* argv[]) {
                 std::cout << "  " << (i + 1) << ". " << test_cases[i].name << std::endl;
             }
             return 0;
-        } else if (arg == "--test" && argc > 2) {
-            std::string test_name = argv[2];
+        } else if (arg == "--test" && i + 1 < argc) {
+            std::string test_name = argv[++i];
             run_all = false;
             
             // 启用指定的测试用例
             for (auto& test_case : test_cases) {
                 test_case.enabled = (test_case.name == test_name);
             }
-        } else if (arg == "--firmware" && argc > 2) {
-            firmware_path = argv[2];
+        } else if (arg == "--firmware" && i + 1 < argc) {
+            firmware_path = argv[++i];
+        } else if (arg == "-l" || arg == "--log-commits" || arg == "--debug") {
+            // 这些是 Spike 参数，传递给 SpikeWrapper
+            spike_args.push_back(arg);
+        } else if (arg.find("--log=") == 0) {
+            // 日志文件参数
+            spike_args.push_back(arg);
+        } else if (arg[0] != '-') {
+            // 假设第一个非选项参数是固件路径
+            if (firmware_path.empty()) {
+                firmware_path = arg;
+            }
         }
+    }
+    
+    // 如果没有明确指定固件路径，可以尝试使用命令行参数作为固件路径
+    if (firmware_path.empty() && argc > 1 && argv[1][0] != '-') {
+        firmware_path = argv[1];
     }
     
     if (run_all) {
@@ -503,5 +531,19 @@ int main(int argc, char* argv[]) {
         std::cout << "Running specific test case..." << std::endl;
     }
     
-    return run_all_tests(test_cases, firmware_path);
+    if (!firmware_path.empty()) {
+        std::cout << "Using firmware: " << firmware_path << std::endl;
+    } else {
+        std::cout << "No firmware file specified" << std::endl;
+    }
+    
+    if (!spike_args.empty()) {
+        std::cout << "Spike arguments: ";
+        for (const auto& arg : spike_args) {
+            std::cout << arg << " ";
+        }
+        std::cout << std::endl;
+    }
+    
+    return run_all_tests(test_cases, firmware_path, spike_args);
 }

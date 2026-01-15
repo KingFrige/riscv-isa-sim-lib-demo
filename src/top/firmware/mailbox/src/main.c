@@ -1,5 +1,13 @@
 #include "firmware.h"
 
+// tohost and fromhost symbols for communication with Spike
+__attribute__((section(".tohost")))
+volatile uint64_t tohost = 0;
+
+__attribute__((section(".fromhost")))
+volatile uint64_t fromhost = 0;
+
+
 // 简单的内存访问函数
 static inline uint32_t read32(uintptr_t addr) {
     return *((volatile uint32_t*)addr);
@@ -161,7 +169,8 @@ void handle_mailbox_command(void) {
             break;
             
         default:
-            printf("Unknown command: 0x%x\n", command);
+            printf("[FIRMWARE] Unknown command: 0x%x, returning MAILBOX_ERR_INVALID_CMD\n", command);
+            response = MAILBOX_ERR_INVALID_CMD;
             break;
     }
     
@@ -177,30 +186,46 @@ void firmware_main(void) {
     printf("[FIRMWARE]: Mailbox Base: 0x%lx\n", (uint64_t)MAILBOX_BASE);
     printf("========================================\n");
     
+    // 简单的测试：打印一个测试消息
+    printf("[FIRMWARE]: Test message before main loop\n");
+    
+    uint32_t loop_count = 0;
+    
+    printf("[FIRMWARE]: Entering main loop...\n");
+    
     // 主循环
     while (1) {
+        loop_count++;
+        
+        // 简单的测试：每1次循环就打印
+        printf("[FIRMWARE]: Loop count: %u\n", loop_count);
+        
         // 检查 mailbox 状态
         uint32_t status = read_mailbox_reg(MAILBOX_STATUS_OFFSET);
         
         if (status & MAILBOX_BUSY) {
+            printf("[FIRMWARE]: Mailbox busy! Status: 0x%x\n", status);
             // 有命令需要处理
             handle_mailbox_command();
             
-            // 清除忙状态（通过写入状态寄存器）
-            write_mailbox_reg(MAILBOX_STATUS_OFFSET, 0);
+            // 注意：不需要清除忙状态，因为mailbox设备会在固件写入响应时自动清除BUSY状态
+            // write_mailbox_reg(MAILBOX_STATUS_OFFSET, 0);
         }
         
         // 简单的延迟，避免过于频繁的轮询
-        delay(1000);
+        delay(100);
     }
 }
 
 // 入口点
+void _start(void) __attribute__((naked, section(".text._start")));
 void _start(void) {
-    firmware_main();
-    
-    // 如果 firmware_main 返回，则进入无限循环
-    while (1) {
-        // 空循环
-    }
+    // 使用汇编直接初始化栈指针，避免编译器生成函数序言
+    __asm__ volatile (
+        ".global _start\n"
+        "_start:\n"
+        "    la sp, __stack_top   # 加载栈顶地址到sp\n"
+        "    jal ra, firmware_main # 调用固件主函数\n"
+        "1:  j 1b                  # 无限循环\n"
+    );
 }

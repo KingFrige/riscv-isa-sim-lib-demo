@@ -23,9 +23,9 @@
 - [x] 输出相关文档，给出测试相关描述
 - [x] 完善firmware中的testcase, 给出期望值，期望值可以从C_src中获取，或者主机计算好填充
 - [x] printf 功能已成功集成到固件中。现在可以在 main.c 中使用 printf、sprintf 等函数，它们会通过 UART 输出到控制台。
+- [x] 在src/top下有一个新的顶层spike_mailbox, 依赖的文件在 src/top/extensions下，以及riscv-isa-sim, 在build_all.sh中创建新的构建函数，构建它
+- [x] 构建firemware/mailbox下的代码，来测试mailbox
 
 
 ## TODO
 
-- [x] 在src/top下有一个新的顶层spike_mailbox, 依赖的文件在 src/top/extensions下，以及riscv-isa-sim, 在build_all.sh中创建新的构建函数，构建它
-- [x] 构建firemware/mailbox下的代码，来测试mailbox

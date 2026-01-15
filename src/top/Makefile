@@ -122,7 +122,7 @@ build_test: $(TARGET)
 # Run with build directory paths
 .PHONY: run-build
 run-build: 
-	$(BUILD_DIR)/top-main --isa=rv64imafdcv_zvl512b_zicsr_xperia_xperiv -l --log=$(BUILD_DIR)/log.txt --log-commits --instructions=80000 $(BUILD_DIR)/firmware/insn/main.elf
+	$(BUILD_DIR)/top-main --isa=rv64imafdcv_zvl512b_zicsr_xperia_xperiv -l --log=$(BUILD_DIR)/spike.log --log-commits --instructions=80000 $(BUILD_DIR)/firmware/insn/main.elf
 
 # Rule to ensure test program is built
 $(TEST_ELF): build_test
@@ -138,7 +138,7 @@ clean_test:
 
 .PHONY: clean
 clean: clean_test
-	$(RM) $(EXTENSIONS_OBJ) $(EXTENSIONS_DEP) $(CUSTOM_SPIKE_OBJ) $(CUSTOM_SPIKE_DEP) $(TARGET) log.txt
+	$(RM) $(EXTENSIONS_OBJ) $(EXTENSIONS_DEP) $(CUSTOM_SPIKE_OBJ) $(CUSTOM_SPIKE_DEP) $(TARGET) spike.log
 
 .PHONY: distclean
 distclean: clean clean_spike

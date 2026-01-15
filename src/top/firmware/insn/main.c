@@ -9,7 +9,7 @@
 __attribute__((section(".tohost")))
 volatile uint64_t tohost = 0;
 
-__attribute__((section(".tohost")))
+__attribute__((section(".fromhost")))
 volatile uint64_t fromhost = 0;
 
 #define OPCODE_DS_SHIFT_VAL 7

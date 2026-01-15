@@ -13,11 +13,18 @@ PROJECT_ROOT ?= ..
 FIRMWARE_DIR = $(PROJECT_ROOT)/mailbox
 
 # 编译选项
-ARCH = rv64imafdc
+ARCH = rv64gc
 ABI = lp64d
 CFLAGS = -march=$(ARCH) -mabi=$(ABI) -O2 -g -Wall -Wextra
 CFLAGS += -ffreestanding -nostdlib -fno-builtin
 CFLAGS += -I$(FIRMWARE_DIR)/include -I$(FIRMWARE_DIR)/src -I../util
+CFLAGS += -mcmodel=medany
+CFLAGS += -fdata-sections -ffunction-sections  # 将每个函数和数据放在独立section，便于gc-sections优化
+# printf配置选项：完全禁用浮点数支持以减小代码大小
+CFLAGS += -DPRINTF_DISABLE_SUPPORT_EXPONENTIAL
+CFLAGS += -DPRINTF_DISABLE_SUPPORT_FLOAT
+CFLAGS += -DPRINTF_DISABLE_SUPPORT_LONG_LONG  # 禁用长整型支持
+CFLAGS += -DPRINTF_DISABLE_SUPPORT_PTRDIFF_T  # 禁用指针差支持
 
 # 链接选项
 LDFLAGS = -T $(FIRMWARE_DIR)/linker/firmware.ld -nostdlib -static

@@ -64,59 +64,6 @@ public:
     bool wait(uint32_t timeout_ms = 0);
     
     // Mailbox 通信接口
-    
-    /**
-     * @brief 发送 HELLO 命令
-     * @return 命令执行结果
-     */
-    uint32_t send_hello();
-    
-    /**
-     * @brief 发送 HI 命令
-     * @return 命令执行结果
-     */
-    uint32_t send_hi();
-    
-    /**
-     * @brief 发送向量加载命令
-     * @param data_addr 数据地址
-     * @param data_size 数据大小（字节）
-     * @param vector_config 向量配置
-     * @return 命令执行结果
-     */
-    uint32_t send_vector_load(uint64_t data_addr, uint32_t data_size, 
-                             uint64_t vector_config = 0);
-    
-    /**
-     * @brief 发送向量存储命令
-     * @param data_addr 数据地址
-     * @param data_size 数据大小（字节）
-     * @param vector_config 向量配置
-     * @return 命令执行结果
-     */
-    uint32_t send_vector_store(uint64_t data_addr, uint32_t data_size,
-                              uint64_t vector_config = 0);
-    
-    /**
-     * @brief 发送向量计算命令
-     * @param data_addr 数据地址
-     * @param data_size 数据大小（字节）
-     * @param vector_config 向量配置
-     * @return 命令执行结果
-     */
-    uint32_t send_vector_compute(uint64_t data_addr, uint32_t data_size,
-                                uint64_t vector_config = 0);
-    
-    /**
-     * @brief 发送Softmax计算命令
-     * @param data_addr 数据地址
-     * @param data_size 数据大小（字节）
-     * @param vector_config 向量配置
-     * @return 命令执行结果
-     */
-    uint32_t send_softmax(uint64_t data_addr, uint32_t data_size,
-                         uint64_t vector_config = 0);
-    
     /**
      * @brief 发送自定义命令
      * @param command 命令代码
@@ -128,6 +75,16 @@ public:
     uint32_t send_command(uint32_t command, uint64_t data_addr = 0,
                          uint32_t data_size = 0, uint64_t vector_config = 0);
     
+        /**
+         * @brief 通过命令索引发送命令（简化接口）
+         * @param command_idx 命令索引
+         * @param data_addr 数据地址
+         * @param data_size 数据大小
+         * @param vector_config 向量配置
+         * @return 命令执行结果
+         */
+        uint32_t mailbox_send_command(int command_idx, uint64_t data_addr = 0,
+                                     uint32_t data_size = 0, uint64_t vector_config = 0);    
     // 状态查询
     
     /**

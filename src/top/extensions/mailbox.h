@@ -1,11 +1,14 @@
 #ifndef _RISCV_MAILBOX_H
 #define _RISCV_MAILBOX_H
 
-#include "devices.h"
-#include "simif.h"
+#include "riscv/devices.h"
+#include "riscv/simif.h"
 #include <cstdint>
 #include <functional>
 #include <vector>
+#include <chrono>
+#include <thread>
+#include <mutex>
 
 #define MAILBOX_BASE 0x60000000
 
@@ -34,6 +37,7 @@ public:
     static constexpr uint32_t MAILBOX_CMD_VECTOR_LOAD    = 0x00000010;
     static constexpr uint32_t MAILBOX_CMD_VECTOR_STORE   = 0x00000011;
     static constexpr uint32_t MAILBOX_CMD_VECTOR_COMPUTE = 0x00000012;
+    static constexpr uint32_t MAILBOX_CMD_SOFTMAX        = 0x00000020;
     
     // 错误码定义
     static constexpr uint32_t MAILBOX_SUCCESS           = 0x00000000;
@@ -43,7 +47,7 @@ public:
     static constexpr uint32_t MAILBOX_ERR_VECTOR_CONFIG = 0x00000004;
     static constexpr uint32_t MAILBOX_ERR_NOT_IMPLEMENTED = 0x00000005;
     
-    mailbox_t(const simif_t* sim);
+    mailbox_t(const simif_t* sim, reg_t base_address = MAILBOX_BASE);
     ~mailbox_t() = default;
     
     // abstract_device_t 接口
@@ -61,8 +65,34 @@ public:
     uint32_t get_status() const { return status_reg; }
     uint32_t get_response() const { return response_reg; }
     
+    // 检查命令是否完成
+    bool is_command_complete() const { return !(status_reg & MAILBOX_BUSY); }
+    
+    // 模拟固件完成命令（在实际固件执行后调用）
+    void on_firmware_command_processed(uint32_t response);
+    
+    // 发送命令到mailbox（从spike_wrapper.cc迁移过来的函数）
+    uint32_t send_command(uint32_t command, uint64_t data_addr = 0,
+                         uint32_t data_size = 0, uint64_t vector_config = 0);
+    
+    // 回调函数类型定义
+    using CommandCallback = std::function<void(uint32_t command, uint32_t response)>;
+    using ErrorCallback = std::function<void(uint32_t error_code)>;
+    using TriggerCallback = std::function<void()>;  // 触发命令执行的函数
+    
+    // 设置回调函数
+    void set_command_callback(CommandCallback callback);
+    void set_error_callback(ErrorCallback callback);
+    
+    // 完整的send_command函数（包含等待和回调）
+    uint32_t send_command_complete(uint32_t command, uint64_t data_addr = 0,
+                                  uint32_t data_size = 0, uint64_t vector_config = 0,
+                                  uint32_t timeout_ms = 2000, uint32_t poll_interval_us = 100,
+                                  TriggerCallback trigger_callback = nullptr);
+    
 private:
     const simif_t* sim;
+    reg_t base_address_;  // 设备基地址
     
     // 寄存器状态
     uint32_t status_reg;
@@ -74,6 +104,13 @@ private:
     
     // 命令处理器
     command_handler_t command_handler;
+    
+    // 回调函数
+    CommandCallback command_callback_;
+    ErrorCallback error_callback_;
+    
+    // 调试标志
+    bool debug_;
     
     // 内部方法
     void process_command();
@@ -88,6 +125,9 @@ private:
     
     // 验证地址范围
     bool validate_address(reg_t addr, size_t len) const;
+    
+    // 等待mailbox就绪
+    bool wait_for_ready(uint32_t timeout_ms = 2000, uint32_t poll_interval_us = 100) const;
 };
 
 #endif // _RISCV_MAILBOX_H

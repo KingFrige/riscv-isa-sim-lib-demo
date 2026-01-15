@@ -21,6 +21,7 @@ SPIKE_SRC_DIR="${SPIKE_SRC_DIR:-$PROJECT_ROOT/riscv-isa-sim}"
 SPIKE_BUILD_DIR="${SPIKE_BUILD_DIR:-$BUILD_DIR/spike}"
 FIRMWARE_BUILD_DIR="${FIRMWARE_BUILD_DIR:-$BUILD_DIR/firmware}"
 TOP_BUILD_DIR="${TOP_BUILD_DIR:-$BUILD_DIR/top}"
+MAILBOX_BUILD_DIR="${MAILBOX_BUILD_DIR:-$BUILD_DIR/mailbox}"
 TESTS_BUILD_DIR="${TESTS_BUILD_DIR:-$BUILD_DIR/tests}"
 
 # Colors for output
@@ -229,9 +230,26 @@ run_tests() {
     log_info "Running tests using files from $BUILD_DIR..."
     cd "$PROJECT_ROOT/src/top"
     make run-build BUILD_DIR="$PROJECT_ROOT/build"
-    log_success "Tests completed and log saved to $BUILD_DIR/log.txt"
+    log_success "Tests completed and log saved to $BUILD_DIR/spike.log"
 }
 
+run_mailbox_tests() {
+    log_info "Running mailbox tests..."
+    
+    cd "$MAILBOX_BUILD_DIR"
+    
+    # Run unified test
+    log_info "Running mailbox tests(all tests in one)..."
+    if [ -f "./spike_mailbox" ]; then
+        ./spike_mailbox -l --log=spike.log --log-commits ../firmware/mailbox/firmware.elf
+    else
+        log_error "spike_mailbox not found"
+        return 1
+    fi
+    
+    cd "$PROJECT_ROOT"
+    log_success "Examples completed"
+}
 
 # Clean build
 clean_build() {
@@ -270,8 +288,8 @@ build_mailbox_firmware() {
     make RISCV_PREFIX="$RISCV_PREFIX" PROJECT_ROOT="." FIRMWARE_DIR="." BUILD_DIR="build"
     
     # Copy the built firmware to the project build directory
-    if [ -f "build/firmware.hex" ]; then
-        cp "build/firmware.hex" "$BUILD_DIR/firmware/mailbox/"
+    if [ -f "build/firmware.elf" ]; then
+        cp "build/firmware.elf" "$BUILD_DIR/firmware/mailbox/"
         log_success "Mailbox firmware copied to $BUILD_DIR/firmware/mailbox/"
     else
         log_error "Mailbox firmware not found"
@@ -385,6 +403,7 @@ Options:
   --all               Build everything and run tests
   --mailbox-firmware  Build only mailbox firmware
   --spike-mailbox     Build only spike mailbox wrapper
+  --run-mailbox       test mailbox
   --riscv PATH        Set RISC-V toolchain path (default: /opt/riscv)
   --spike-src PATH    Set Spike source path (default: ./riscv-isa-sim)
 
@@ -417,6 +436,7 @@ parse_args() {
     local build_mailbox_firmware_flag=0
     local build_spike_mailbox_flag=0
     local run_tests_flag=0
+    local run_mailbox_tests_flag=0
 
     if [ $# -lt 1 ]; then
         run_tests_flag=1
@@ -469,6 +489,10 @@ parse_args() {
                 build_spike_mailbox_flag=1
                 shift
                 ;;
+            --run-mailbox)
+                run_mailbox_tests_flag=1
+                shift
+                ;;
             --riscv)
                 RISCV_TOOLCHAIN="$2"
                 shift 2
@@ -516,11 +540,12 @@ parse_args() {
     
     # Run tests if requested
     if [ $run_tests_flag -eq 1 ]; then
-        # Ensure top wrapper is built before running tests
-        if [ $build_top_flag -eq 0 ]; then
-            build_top_wrapper
-        fi
         run_tests
+    fi
+
+    # Run tests if requested
+    if [ $run_mailbox_tests_flag -eq 1 ]; then
+        run_mailbox_tests
     fi
 }
 

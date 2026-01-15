@@ -3,9 +3,8 @@ OUTPUT_ARCH("riscv")
 ENTRY(_start)
 
 MEMORY {
-    /* Spike 的 ROM 通常从 0x1000 开始 */
-    rom (rx) : ORIGIN = 0x1000, LENGTH = 64K
-    ram (rwx) : ORIGIN = 0x80000000, LENGTH = 512K
+    /* 将所有内容都放在 RAM 段中，避免跨段重定位问题 */
+    ram (rwx) : ORIGIN = 0x80000000, LENGTH = 640K  /* 从DRAM起始地址开始，640KB总内存 */
 }
 
 SECTIONS {
@@ -21,7 +20,7 @@ SECTIONS {
         *(.text.handle_vector_compute)
         *(.text)
         *(.text.*)
-    } > rom
+    } > ram
 
     /* 只读数据段 */
     .rodata : {
@@ -29,7 +28,7 @@ SECTIONS {
         *(.rodata.*)
         *(.srodata)
         *(.srodata.*)
-    } > rom
+    } > ram
 
     /* 构造函数 */
     .init_array : {
@@ -37,7 +36,7 @@ SECTIONS {
         KEEP (*(SORT_BY_INIT_PRIORITY(.init_array.*)))
         KEEP (*(.init_array))
         __init_array_end = .;
-    } > rom
+    } > ram
 
     /* 析构函数 */
     .fini_array : {
@@ -45,16 +44,24 @@ SECTIONS {
         KEEP (*(SORT_BY_INIT_PRIORITY(.fini_array.*)))
         KEEP (*(.fini_array))
         __fini_array_end = .;
-    } > rom
+    } > ram
 
-    /* 数据段（加载到 ROM，运行时复制到 RAM） */
-    .data : AT(ADDR(.rodata) + SIZEOF(.rodata)) {
+    /* 数据段 */
+    .data : {
         __data_start = .;
         *(.data)
         *(.data.*)
         *(.sdata)
         *(.sdata.*)
         __data_end = .;
+    } > ram
+
+    /* HTIF通信符号 (for Spike) - 需要KEEP保护防止被gc-sections删除 */
+    .tohost : {
+        KEEP(*(.tohost))
+    } > ram
+    .fromhost : {
+        KEEP(*(.fromhost))
     } > ram
 
     /* BSS 段（未初始化数据） */
@@ -80,23 +87,19 @@ SECTIONS {
         __stack_top = .;
     } > ram
 
-    /* 堆区域（在栈之后） */
-    .heap : {
+    /* 堆区域（在栈之后） - 只定义符号，不分配实际空间 */
+    .heap (NOLOAD) : {
         . = ALIGN(16);
         __heap_start = .;
-        . = ORIGIN(ram) + LENGTH(ram) - 1;
-        __heap_end = .;
+        /* 不分配实际空间，只定义符号 */
     } > ram
+    
+    /* 堆结束地址符号 */
+    __heap_end = ORIGIN(ram) + LENGTH(ram);
 
     /* 符号定义 */
-    __rom_start = ORIGIN(rom);
-    __rom_end = ORIGIN(rom) + LENGTH(rom);
     __ram_start = ORIGIN(ram);
     __ram_end = ORIGIN(ram) + LENGTH(ram);
-
-    /* 数据加载地址（在 ROM 中的位置） */
-    __data_load_start = LOADADDR(.data);
-    __data_load_end = __data_load_start + SIZEOF(.data);
 
     /* 丢弃其他段 */
     /DISCARD/ : {

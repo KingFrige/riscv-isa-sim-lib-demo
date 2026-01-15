@@ -26,6 +26,7 @@ public:
         , mailbox_base_(mailbox_base)
         , running_(false)
         , debug_(false)
+        , enable_log_(false)
         , poll_interval_us_(1000)
         , command_timeout_ms_(1000) {
     }
@@ -53,15 +54,9 @@ public:
         try {
             // 准备 Spike 参数
             std::vector<std::string> spike_args = {
-                "spike",
                 "--isa=rv64gc",
                 "-m0x80000000:0x10000"  // 128KB 内存
             };
-            
-            // 添加固件参数
-            if (!firmware_path_.empty()) {
-                spike_args.push_back("--rom=" + firmware_path_);
-            }
             
             // 添加用户参数
             spike_args.insert(spike_args.end(), args.begin(), args.end());
@@ -141,36 +136,28 @@ public:
     }
     
     // Mailbox 命令接口
-    uint32_t send_hello() {
-        return send_command(0x00000001);  // MAILBOX_CMD_HELLO
+    uint32_t mailbox_send_command(int command_idx, uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
+        // 根据命令索引调用相应的命令函数
+        switch (command_idx) {
+            case mailbox_t::MAILBOX_CMD_HELLO:
+                return send_command(mailbox_t::MAILBOX_CMD_HELLO, 0, 0, 0);
+            case mailbox_t::MAILBOX_CMD_HI:
+                return send_command(mailbox_t::MAILBOX_CMD_HI, 0, 0, 0);
+            case mailbox_t::MAILBOX_CMD_VECTOR_LOAD:
+                return send_command(mailbox_t::MAILBOX_CMD_VECTOR_LOAD, data_addr, data_size, vector_config);
+            case mailbox_t::MAILBOX_CMD_VECTOR_STORE:
+                return send_command(mailbox_t::MAILBOX_CMD_VECTOR_STORE, data_addr, data_size, vector_config);
+            case mailbox_t::MAILBOX_CMD_VECTOR_COMPUTE:
+                return send_command(mailbox_t::MAILBOX_CMD_VECTOR_COMPUTE, data_addr, data_size, vector_config);
+            case mailbox_t::MAILBOX_CMD_SOFTMAX:
+                return send_command(mailbox_t::MAILBOX_CMD_SOFTMAX, data_addr, data_size, vector_config);;
+            default:
+                std::cerr << "[SpikeWrapper] Invalid command index: " << command_idx << std::endl;
+                return 0xFFFFFFFF;  // 错误码
+        }
     }
     
-    uint32_t send_hi() {
-        return send_command(0x00000002);  // MAILBOX_CMD_HI
-    }
-    
-    uint32_t send_vector_load(uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
-        return send_command(0x00000010, data_addr, data_size, vector_config);
-    }
-    
-    uint32_t send_vector_store(uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
-        return send_command(0x00000011, data_addr, data_size, vector_config);
-    }
-    
-    uint32_t send_vector_compute(uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
-        return send_command(0x00000012, data_addr, data_size, vector_config);
-    }
-    
-    uint32_t send_softmax(uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
-        return send_command(0x00000020, data_addr, data_size, vector_config);  // MAILBOX_CMD_SOFTMAX
-    }
-    
-    uint32_t send_command(uint32_t command) {
-        return send_command(command, 0, 0, 0);
-    }
-    
-    uint32_t send_command(uint32_t command, uint64_t data_addr,
-                         uint32_t data_size, uint64_t vector_config) {
+    uint32_t send_command(uint32_t command, uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
         std::lock_guard<std::mutex> lock(command_mutex_);
         
         if (debug_) {
@@ -190,89 +177,16 @@ public:
             return 0xFFFFFFFF;  // 错误码
         }
         
-        // 等待 mailbox 就绪
-        if (!wait_for_mailbox_ready()) {
-            std::cerr << "[SpikeWrapper] Mailbox not ready" << std::endl;
-            return 0xFFFFFFFF;  // 错误码
-        }
+        // 创建触发回调函数（写入状态寄存器以触发命令执行）
+        auto trigger_callback = [this]() {
+            uint32_t trigger = 1;  // 任何非零值都会触发命令处理
+            mailbox_dev_->store(mailbox_t::MAILBOX_STATUS_OFFSET, 4, (const uint8_t*)&trigger);
+        };
         
-        // 通过 mailbox 设备写入命令参数
-        // 注意：mailbox_t 设备通过 store() 方法处理写入
-        
-        // 写入命令寄存器
-        uint32_t cmd = command;
-        mailbox_dev_->store(mailbox_base_ + 0x04, 4, (const uint8_t*)&cmd);  // MAILBOX_COMMAND_OFFSET
-        
-        // 写入数据地址寄存器（64位）
-        uint64_t addr = data_addr;
-        mailbox_dev_->store(mailbox_base_ + 0x08, 8, (const uint8_t*)&addr);  // MAILBOX_DATA_ADDR_OFFSET
-        
-        // 写入数据大小寄存器
-        uint32_t size = data_size;
-        mailbox_dev_->store(mailbox_base_ + 0x10, 4, (const uint8_t*)&size);  // MAILBOX_DATA_SIZE_OFFSET
-        
-        // 写入向量配置寄存器（64位）
-        uint64_t vconfig = vector_config;
-        mailbox_dev_->store(mailbox_base_ + 0x18, 8, (const uint8_t*)&vconfig);  // MAILBOX_VECTOR_CONFIG_OFFSET
-        
-        if (debug_) {
-            std::cout << "[SpikeWrapper] Command parameters written to mailbox, triggering command execution..." << std::endl;
-        }
-        
-        // 写入状态寄存器以触发命令执行
-        // 根据 mailbox.cc 的实现，写入状态寄存器会触发 process_command()
-        uint32_t trigger = 1;  // 任何非零值都会触发命令处理
-        mailbox_dev_->store(mailbox_base_ + 0x00, 4, (const uint8_t*)&trigger);  // MAILBOX_STATUS_OFFSET
-        
-        if (debug_) {
-            std::cout << "[SpikeWrapper] Command execution triggered, waiting for firmware response..." << std::endl;
-        }
-        
-        // 等待命令处理完成（固件处理命令并设置响应）
-        auto start = std::chrono::steady_clock::now();
-        auto timeout = std::chrono::milliseconds(command_timeout_ms_);
-        
-        uint32_t response = 0xFFFFFFFF;
-        
-        while (true) {
-            // 读取状态寄存器
-            uint32_t status = 0;
-            mailbox_dev_->load(mailbox_base_ + 0x00, 4, (uint8_t*)&status);  // MAILBOX_STATUS_OFFSET
-            
-            // 检查是否不再忙（固件已处理完命令）
-            if (!(status & 0x00000002)) {  // BUSY 位为 0
-                // 读取响应寄存器
-                mailbox_dev_->load(mailbox_base_ + 0x14, 4, (uint8_t*)&response);  // MAILBOX_RESPONSE_OFFSET
-                
-                if (debug_) {
-                    std::cout << "[SpikeWrapper] Command response: 0x" 
-                              << std::hex << response << std::dec << std::endl;
-                }
-                break;
-            }
-            
-            auto now = std::chrono::steady_clock::now();
-            if (now - start > timeout) {
-                std::cerr << "[SpikeWrapper] Command timeout" << std::endl;
-                response = 0xFFFFFFFF;  // 超时错误
-                break;
-            }
-            
-            // 短暂休眠避免过于频繁的轮询
-            std::this_thread::sleep_for(std::chrono::microseconds(poll_interval_us_));
-        }
-        
-        // 调用回调函数
-        if (command_callback_) {
-            command_callback_(command, response);
-        }
-        
-        // 检查错误
-        if (response != 0 && error_callback_) {
-            error_callback_(response);
-        }
-        
-        return response;
+        // 使用 mailbox 设备的完整 send_command 函数
+        return mailbox_dev_->send_command_complete(command, data_addr, data_size, vector_config,
+                                                  command_timeout_ms_, poll_interval_us_,
+                                                  trigger_callback);
     }
     
     // 状态查询
@@ -281,23 +195,23 @@ public:
             return 0;
         }
         uint32_t status = 0;
-        mailbox_dev_->load(mailbox_base_ + 0x00, 4, (uint8_t*)&status);  // MAILBOX_STATUS_OFFSET
+        mailbox_dev_->load(mailbox_t::MAILBOX_STATUS_OFFSET, 4, (uint8_t*)&status);
         return status;
     }
     
     bool is_mailbox_ready() const {
         uint32_t status = get_mailbox_status();
-        return (status & 0x00000001) != 0;  // READY 位
+        return (status & mailbox_t::MAILBOX_READY) != 0;
     }
     
     bool is_mailbox_busy() const {
         uint32_t status = get_mailbox_status();
-        return (status & 0x00000002) != 0;  // BUSY 位
+        return (status & mailbox_t::MAILBOX_BUSY) != 0;
     }
     
     bool has_error() const {
         uint32_t status = get_mailbox_status();
-        return (status & 0x00000004) != 0;  // ERROR 位
+        return (status & mailbox_t::MAILBOX_ERROR) != 0;
     }
     
     uint32_t get_error_code() const {
@@ -305,7 +219,7 @@ public:
             return 0;
         }
         uint32_t response = 0;
-        mailbox_dev_->load(mailbox_base_ + 0x14, 4, (uint8_t*)&response);  // MAILBOX_RESPONSE_OFFSET
+        mailbox_dev_->load(mailbox_t::MAILBOX_RESPONSE_OFFSET, 4, (uint8_t*)&response);
         return response;
     }
     
@@ -313,11 +227,19 @@ public:
     void set_command_callback(CommandCallback callback) {
         std::lock_guard<std::mutex> lock(callback_mutex_);
         command_callback_ = std::move(callback);
+        // 同时设置给mailbox设备
+        if (mailbox_dev_) {
+            mailbox_dev_->set_command_callback(callback);
+        }
     }
     
     void set_error_callback(std::function<void(uint32_t)> callback) {
         std::lock_guard<std::mutex> lock(callback_mutex_);
         error_callback_ = std::move(callback);
+        // 同时设置给mailbox设备
+        if (mailbox_dev_) {
+            mailbox_dev_->set_error_callback(callback);
+        }
     }
     
     // 配置选项
@@ -344,35 +266,6 @@ private:
             std::cout << std::endl;
         }
         
-        // 检查固件文件是否存在
-        if (!firmware_path_.empty()) {
-            std::ifstream file(firmware_path_);
-            if (!file.good()) {
-                std::cerr << "[SpikeWrapper] Firmware file not found: " << firmware_path_ << std::endl;
-                // 尝试其他路径
-                std::string alt_path = "../" + firmware_path_;
-                std::ifstream alt_file(alt_path);
-                if (alt_file.good()) {
-                    std::cout << "[SpikeWrapper] Found firmware at alternative path: " << alt_path << std::endl;
-                    // 更新固件路径为找到的替代路径
-                    firmware_path_ = alt_path;
-                } else {
-                    // 尝试另一个可能的路径
-                    alt_path = "../../" + firmware_path_;
-                    std::ifstream alt_file2(alt_path);
-                    if (alt_file2.good()) {
-                        std::cout << "[SpikeWrapper] Found firmware at alternative path: " << alt_path << std::endl;
-                        // 更新固件路径为找到的替代路径
-                        firmware_path_ = alt_path;
-                    } else {
-                        std::cerr << "[SpikeWrapper] Firmware not found at any alternative path" << std::endl;
-                    }
-                }
-            } else {
-                std::cout << "[SpikeWrapper] Firmware file found: " << firmware_path_ << std::endl;
-            }
-        }
-        
         try {
             // 创建配置
             cfg_t cfg;
@@ -380,9 +273,9 @@ private:
             // 设置 ISA
             cfg.isa = "rv64gc";
             
-            // 设置内存布局 - 128KB 内存从 0x80000000 开始
+            // 设置内存布局
             std::vector<mem_cfg_t> mem_layout;
-            mem_layout.push_back(mem_cfg_t(0x80000000, 0x10000));  // 64KB
+            mem_layout.push_back(mem_cfg_t(0x80000000, 0x8000000)); // 128MB DRAM从0x80000000开始
             cfg.mem_layout = mem_layout;
             
             // 设置 hartids
@@ -396,14 +289,33 @@ private:
                 mems_.push_back(std::make_pair(mem_cfg.get_base(), new mem_t(mem_cfg.get_size())));
             }
             
-            // 如果没有固件文件，创建一个简单的固件
-            std::vector<std::string> htif_args = args;
+            // 创建HTIF参数列表，包含ELF文件路径（如果提供了的话）
+            std::vector<std::string> htif_args;
+
+            // 添加permissive参数处理可能的未知选项
+            htif_args.push_back("+permissive");
+            htif_args.push_back("+permissive-off");
+
+            if (!firmware_path_.empty()) {
+                htif_args.push_back(firmware_path_);  // ELF文件路径作为程序参数
+            }
             
             // 调试模块配置
-            debug_module_config_t dm_config;
+            debug_module_config_t dm_config = {
+                .progbufsize = 2,
+                .datacount = 2,
+                .max_sba_data_width = 0,
+                .require_authentication = false,
+                .abstract_rti = 0,
+                .support_hasel = true,
+                .support_abstract_csr_access = true,
+                .support_abstract_fpr_access = true,
+                .support_haltgroups = true,
+                .support_impebreak = true,
+                .support_abstractauto = true
+            };
             
             // 创建 sim_t 实例
-            // 注意：我们使用简化的参数，实际实现可能需要更完整的参数解析
             std::vector<device_factory_sargs_t> plugin_device_factories;
             const char* log_path = nullptr;
             bool dtb_enabled = true;
@@ -412,7 +324,45 @@ private:
             FILE* cmd_file = nullptr;
             std::optional<unsigned long long> instruction_limit;
             
-            // 创建 sim_t 实例
+            // 解析日志相关参数
+            bool enable_log = false;
+            bool enable_commitlog = false;
+            std::string log_file_path;
+            
+            // 解析传入的参数
+            for (size_t i = 0; i < args.size(); ++i) {
+                const std::string& arg = args[i];
+                
+                if (arg == "-l") {
+                    enable_log = true;
+                } else if (arg.find("--log=") == 0) {
+                    enable_log = true;
+                    log_file_path = arg.substr(6); // 提取 --log= 后面的部分
+                    log_path = log_file_path.c_str();
+                } else if (arg == "--log-commits") {
+                    enable_commitlog = true;
+                } else if (arg.find("--log=") == 0 && arg.length() > 6) {
+                    // 处理 --log=path 格式
+                    enable_log = true;
+                    log_file_path = arg.substr(6);
+                    log_path = log_file_path.c_str();
+                }
+                // 其他参数可以在这里添加
+            }
+            
+            // 如果指定了日志但没有指定文件路径，使用默认路径
+            if (enable_log && log_file_path.empty()) {
+                log_file_path = "spike_log.txt";
+                log_path = log_file_path.c_str();
+                if (debug_) {
+                    std::cout << "[SpikeWrapper] Using default log file: " << log_file_path << std::endl;
+                }
+            }
+            
+            // 保存日志启用状态到成员变量
+            enable_log_ = enable_log;
+            
+            // 创建 sim_t 实例，使用 halted=true 确保程序不会立即运行
             sim_t* sim = new sim_t(&cfg, false, mems_, plugin_device_factories, htif_args,
                                   dm_config, log_path, dtb_enabled, dtb_file,
                                   socket_enabled, cmd_file, instruction_limit);
@@ -425,8 +375,8 @@ private:
                 }
                 
                 try {
-                    // 创建 mailbox 设备实例
-                    mailbox_dev_ = std::make_shared<mailbox_t>(sim);
+                    // 创建 mailbox 设备实例，传递基地址
+                    mailbox_dev_ = std::make_shared<mailbox_t>(sim, mailbox_base_);
                     
                     if (debug_) {
                         std::cout << "[SpikeWrapper] Mailbox device created for address 0x" 
@@ -434,8 +384,7 @@ private:
                                   << " with size 0x" << mailbox_dev_->size() << std::dec << std::endl;
                     }
                     
-                    // 将 mailbox 设备直接添加到 Spike 实例
-                    // 在 Spike 构造函数之外添加设备到总线
+                    // 将 mailbox 设备添加到 Spike 实例
                     sim->add_device(mailbox_base_, mailbox_dev_);
                     
                     if (debug_) {
@@ -451,54 +400,22 @@ private:
                 }
             }
             
-            // UART 设备已经在 riscv-isa-sim 的 sim.cc:121 中添加
-            // 地址为 0x10000000，固件可以直接使用
+            // UART 设备已经在 riscv-isa-sim 中添加
             if (debug_) {
-                std::cout << "[SpikeWrapper] UART device already exists at address 0x10000000 (from riscv-isa-sim)" << std::endl;
-            }
-            
-            // 加载固件到内存（如果提供了固件文件）
-            if (!firmware_path_.empty()) {
-                std::ifstream file(firmware_path_, std::ios::binary);
-                if (file.good()) {
-                    // 获取文件大小
-                    file.seekg(0, std::ios::end);
-                    size_t file_size = file.tellg();
-                    file.seekg(0, std::ios::beg);
-                    
-                    // 读取文件内容
-                    std::vector<char> buffer(file_size);
-                    file.read(buffer.data(), file_size);
-                    
-                    // 将固件写入内存（从 0x80000000 开始）
-                    // 注意：这里简化了固件加载，实际实现可能需要更复杂的处理
-                    if (!mems_.empty() && file_size <= mems_[0].second->size()) {
-                        // 将固件写入内存
-                        // 注意：这里简化了，实际应该批量写入以提高性能
-                        for (size_t i = 0; i < file_size; i++) {
-                            uint8_t byte = static_cast<uint8_t>(buffer[i]);
-                            mems_[0].second->store(mems_[0].first + i, 1, &byte);
-                        }
-                        
-                        if (debug_) {
-                            std::cout << "[SpikeWrapper] Loaded firmware (" << file_size 
-                                      << " bytes) to memory at 0x" << std::hex << mems_[0].first 
-                                      << std::dec << std::endl;
-                        }
-                    } else {
-                        std::cerr << "[SpikeWrapper] Firmware too large for memory or no memory available" << std::endl;
-                    }
-                }
+                std::cout << "[SpikeWrapper] UART device available at address 0x10000000" << std::endl;
             }
             
             // 设置调试模式
             sim->set_debug(debug_);
             
-            // 配置日志
-            sim->configure_log(false, false);
+            // 配置日志（使用从参数中解析的设置）
+            sim->configure_log(enable_log, enable_commitlog);
             
             if (debug_) {
                 std::cout << "[SpikeWrapper] Spike instance created successfully" << std::endl;
+                std::cout << "[SpikeWrapper] Log settings: enable_log=" << enable_log 
+                          << ", enable_commitlog=" << enable_commitlog 
+                          << ", log_path=" << (log_path ? log_path : "null") << std::endl;
             }
             
             return std::unique_ptr<sim_t>(sim);
@@ -522,15 +439,54 @@ private:
                     std::cout << "[SpikeWrapper] Running Spike simulation..." << std::endl;
                 }
                 
-                // 不运行完整的模拟器，因为 sim_->run() 需要外部 spike 可执行文件
-                // mailbox_t 设备会处理命令，模拟固件的行为
+                // 在循环中运行模拟器，检查是否需要停止
+                // 在实际运行之前，先调用start()来加载ELF程序
                 if (debug_) {
-                    std::cout << "[SpikeWrapper] Spike instance ready, mailbox device will handle commands" << std::endl;
+                    std::cout << "[SpikeWrapper] Loading ELF program via HTIF start() method" << std::endl;
                 }
                 
-                // 保持线程运行
-                while (running_) {
-                    std::this_thread::sleep_for(100ms);
+                sim_->start(); // 这将调用HTIF的start()方法加载ELF程序
+                
+                if (debug_) {
+                    std::cout << "[SpikeWrapper] ELF program loaded, starting simulation loop" << std::endl;
+                }
+                
+                // 如果启用了日志，手动设置处理器的debug标志
+                if (enable_log_ && !sim_->get_harts().empty()) {
+                    auto it = sim_->get_harts().begin();
+                    processor_t* proc = it->second;
+                    if (proc) {
+                        proc->set_debug(true);
+                        if (debug_) {
+                            std::cout << "[SpikeWrapper] Set processor debug flag for logging" << std::endl;
+                        }
+                    }
+                }
+                
+                // 在循环中运行模拟器，检查是否需要停止
+                while (running_ && !sim_->done()) {
+                    try {
+                        // 获取处理器并执行少量指令
+                        // 这样可以让固件处理mailbox命令
+                        if (!sim_->get_harts().empty()) {
+                            // 获取第一个处理器（通常是唯一的处理器）
+                            auto it = sim_->get_harts().begin();
+                            processor_t* proc = it->second;
+                            if (proc) {
+                                // 执行少量指令，让固件有机会处理mailbox命令
+                                proc->step(100);  // 执行100个指令周期
+                            }
+                        }
+                        
+                    } catch (const std::exception& e) {
+                        if (debug_) {
+                            std::cout << "[SpikeWrapper] Spike execution exception: " << e.what() << std::endl;
+                        }
+                        // 继续循环，除非明确停止
+                    }
+                    
+                    // 短暂休眠以避免过度占用CPU，同时保持响应性
+                    std::this_thread::sleep_for(1ms);
                 }
                 
                 if (debug_) {
@@ -570,7 +526,7 @@ private:
             uint32_t status = mailbox_dev_->get_status();
             
             // 检查是否就绪且不忙
-            if ((status & 0x00000001) && !(status & 0x00000002)) {  // READY 且不 BUSY
+            if ((status & mailbox_t::MAILBOX_READY) && !(status & mailbox_t::MAILBOX_BUSY)) {
                 return true;
             }
             
@@ -595,6 +551,7 @@ private:
     
     std::atomic<bool> running_;
     std::atomic<bool> debug_;
+    std::atomic<bool> enable_log_;  // 日志启用状态
     std::atomic<uint32_t> poll_interval_us_;
     std::atomic<uint32_t> command_timeout_ms_;
     
@@ -629,28 +586,8 @@ bool SpikeWrapper::wait(uint32_t timeout_ms) {
     return impl_->wait(timeout_ms);
 }
 
-uint32_t SpikeWrapper::send_hello() {
-    return impl_->send_hello();
-}
-
-uint32_t SpikeWrapper::send_hi() {
-    return impl_->send_hi();
-}
-
-uint32_t SpikeWrapper::send_vector_load(uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
-    return impl_->send_vector_load(data_addr, data_size, vector_config);
-}
-
-uint32_t SpikeWrapper::send_vector_store(uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
-    return impl_->send_vector_store(data_addr, data_size, vector_config);
-}
-
-uint32_t SpikeWrapper::send_vector_compute(uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
-    return impl_->send_vector_compute(data_addr, data_size, vector_config);
-}
-
-uint32_t SpikeWrapper::send_softmax(uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
-    return impl_->send_softmax(data_addr, data_size, vector_config);
+uint32_t SpikeWrapper::mailbox_send_command(int command_idx, uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
+    return impl_->mailbox_send_command(command_idx, data_addr, data_size, vector_config);
 }
 
 uint32_t SpikeWrapper::send_command(uint32_t command, uint64_t data_addr,
@@ -682,7 +619,7 @@ void SpikeWrapper::set_command_callback(CommandCallback callback) {
     impl_->set_command_callback(std::move(callback));
 }
 
-void SpikeWrapper::set_error_callback(std::function<void(uint32_t)> callback) {
+void SpikeWrapper::set_error_callback(std::function<void(uint32_t error_code)> callback) {
     impl_->set_error_callback(std::move(callback));
 }
 

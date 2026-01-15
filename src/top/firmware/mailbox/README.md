@@ -28,7 +28,7 @@ The firmware implements a mailbox communication mechanism that allows the host t
 ### Build Steps
 
 ```bash
-make RISCV_PREFIX="$RISCV_PREFIX" PROJECT_ROOT="." FIRMWARE_DIR="." BUILD_DIR="build"
+make PROJECT_ROOT="." FIRMWARE_DIR="." BUILD_DIR="build"
 
 # Install to Spike directory
 make install
@@ -43,7 +43,7 @@ make install
 
 ## Memory Map
 
-### Mailbox Registers (Base: 0x40000000)
+### Mailbox Registers (Base: 0x60000000)
 
 | Offset | Register | Width | Description |
 |--------|----------|-------|-------------|
