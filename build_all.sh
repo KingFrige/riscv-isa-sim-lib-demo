@@ -235,20 +235,18 @@ run_tests() {
 
 run_mailbox_tests() {
     log_info "Running mailbox tests..."
-    
-    cd "$MAILBOX_BUILD_DIR"
-    
-    # Run unified test
-    log_info "Running mailbox tests(all tests in one)..."
-    if [ -f "./spike_mailbox" ]; then
-        ./spike_mailbox -l --log=spike.log --log-commits ../firmware/mailbox/firmware.elf
-    else
-        log_error "spike_mailbox not found"
-        return 1
-    fi
-    
+
+    # Set environment variables
+    export SPIKE_INSTALL_DIR="$PROJECT_ROOT/riscv-isa-sim/install"
+    export SPIKE_SOURCE_DIR="$SPIKE_SRC_DIR"
+    export RISCV_PATH="$RISCV_TOOLCHAIN"
+
+    # Run mailbox test using Makefile
+    cd "$PROJECT_ROOT/src/top"
+    make run-mailbox BUILD_DIR="$BUILD_DIR"
+
     cd "$PROJECT_ROOT"
-    log_success "Examples completed"
+    log_success "Mailbox tests completed"
 }
 
 # Clean build
@@ -303,87 +301,27 @@ build_mailbox_firmware() {
 
 # Build spike_mailbox wrapper
 build_spike_mailbox() {
-    log_info "Building spike mailbox wrapper..."
-    
-    # Create build directory
-    mkdir -p "$BUILD_DIR/mailbox"
-    
+    log_info "Building spike mailbox wrapper using Makefile..."
+
     # Set environment variables for the build
     export SPIKE_INSTALL_DIR="$PROJECT_ROOT/riscv-isa-sim/install"
     export SPIKE_SOURCE_DIR="$SPIKE_SRC_DIR"
     export RISCV_PATH="$RISCV_TOOLCHAIN"
-    
-    # Set compiler and other build tools
-    export CC=gcc
-    export CXX=g++
-    
-    # Build spike_mailbox executable
+
+    # Build spike_mailbox using Makefile (includes all extensions)
     cd "$PROJECT_ROOT/src/top"
-    
-    # Compile spike_mailbox with necessary includes and libraries
-    $CXX -std=c++17 -fPIC -O2 -Wall -MMD -MP -D_GNU_SOURCE \
-        -I"$SPIKE_INSTALL_DIR/include" \
-        -I"$SPIKE_INSTALL_DIR/include/riscv" \
-        -I"$SPIKE_INSTALL_DIR/include/fesvr" \
-        -I"$SPIKE_INSTALL_DIR/include/disasm" \
-        -I"$SPIKE_INSTALL_DIR/include/softfloat" \
-        -I"$SPIKE_BUILD_DIR" \
-        -I"$SPIKE_DIR/riscv" \
-        -I"$SPIKE_DIR" \
-        -I"$PROJECT_ROOT/src/top" \
-        -I"$PROJECT_ROOT/src/top/extensions" \
-        -c "$PROJECT_ROOT/src/top/spike_mailbox.cc" \
-        -o "$BUILD_DIR/mailbox/spike_mailbox.o"
-        
-    # Compile extensions
-    $CXX -std=c++17 -fPIC -O2 -Wall -MMD -MP -D_GNU_SOURCE \
-        -I"$SPIKE_INSTALL_DIR/include" \
-        -I"$SPIKE_INSTALL_DIR/include/riscv" \
-        -I"$SPIKE_INSTALL_DIR/include/fesvr" \
-        -I"$SPIKE_INSTALL_DIR/include/disasm" \
-        -I"$SPIKE_INSTALL_DIR/include/softfloat" \
-        -I"$SPIKE_BUILD_DIR" \
-        -I"$SPIKE_DIR/riscv" \
-        -I"$SPIKE_DIR" \
-        -I"$PROJECT_ROOT/src/top" \
-        -I"$PROJECT_ROOT/src/top/extensions" \
-        -c "$PROJECT_ROOT/src/top/extensions/spike_wrapper.cc" \
-        -o "$BUILD_DIR/mailbox/spike_wrapper.o"
-        
-    $CXX -std=c++17 -fPIC -O2 -Wall -MMD -MP -D_GNU_SOURCE \
-        -I"$SPIKE_INSTALL_DIR/include" \
-        -I"$SPIKE_INSTALL_DIR/include/riscv" \
-        -I"$SPIKE_INSTALL_DIR/include/fesvr" \
-        -I"$SPIKE_INSTALL_DIR/include/disasm" \
-        -I"$SPIKE_INSTALL_DIR/include/softfloat" \
-        -I"$SPIKE_BUILD_DIR" \
-        -I"$SPIKE_DIR/riscv" \
-        -I"$SPIKE_DIR" \
-        -I"$PROJECT_ROOT/src/top" \
-        -I"$PROJECT_ROOT/src/top/extensions" \
-        -c "$PROJECT_ROOT/src/top/extensions/mailbox.cc" \
-        -o "$BUILD_DIR/mailbox/mailbox.o"
-    
-    # Link everything together using Spike libraries
-    $CXX -Wl,-rpath,"$SPIKE_INSTALL_DIR/lib" -Wl,--no-as-needed \
-        -L"$SPIKE_INSTALL_DIR/lib" \
-        -o "$BUILD_DIR/mailbox/spike_mailbox" \
-        "$BUILD_DIR/mailbox/spike_mailbox.o" \
-        "$BUILD_DIR/mailbox/spike_wrapper.o" \
-        "$BUILD_DIR/mailbox/mailbox.o" \
-        -lriscv -lsoftfloat -ldisasm -lfesvr -ldl -lpthread
-    
+    make build_mailbox BUILD_DIR="$BUILD_DIR"
+
     # Copy the built executable to the project build directory
     if [ -f "$BUILD_DIR/mailbox/spike_mailbox" ]; then
-        log_success "Spike mailbox wrapper executable copied to $BUILD_DIR/mailbox/"
+        log_success "Spike mailbox wrapper built successfully"
     else
         log_error "Spike mailbox wrapper executable not found"
         return 1
     fi
-    
+
     # Return to project root
     cd "$PROJECT_ROOT"
-    log_success "Spike mailbox wrapper built successfully"
 }
 
 # Show help

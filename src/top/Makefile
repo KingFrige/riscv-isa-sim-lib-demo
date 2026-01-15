@@ -35,8 +35,16 @@ CUSTOM_SPIKE_SRC = $(ROOT_DIR)/spike_main.cc
 CUSTOM_SPIKE_OBJ = $(BUILD_DIR)/spike_main.o
 CUSTOM_SPIKE_DEP = $(CUSTOM_SPIKE_OBJ:.o=.d)
 
+# Source files for spike_mailbox
+SPIKE_MAILBOX_SRC = $(ROOT_DIR)/spike_mailbox.cc
+SPIKE_MAILBOX_OBJ = $(BUILD_DIR)/spike_mailbox.o
+SPIKE_MAILBOX_DEP = $(SPIKE_MAILBOX_OBJ:.o=.d)
+
 # Target executable
 TARGET = $(BUILD_DIR)/top-main
+
+# Mailbox target executable
+MAILBOX_TARGET = $(BUILD_DIR)/mailbox/spike_mailbox
 
 # Compiler flags
 CXX ?= g++
@@ -89,6 +97,11 @@ $(BUILD_DIR)/%.o: $(ROOT_DIR)/%.cc
 $(TARGET): $(EXTENSIONS_OBJ) $(CUSTOM_SPIKE_OBJ)
 	$(CXX) $(LDFLAGS) -L$(SPIKE_LIB_DIR) -o $@ $^ $(LDLIBS)
 
+# Build spike_mailbox (includes all extensions for AI指令 support)
+$(MAILBOX_TARGET): $(EXTENSIONS_OBJ) $(SPIKE_MAILBOX_OBJ)
+	@mkdir -p $(dir $@)
+	$(CXX) $(LDFLAGS) -L$(SPIKE_LIB_DIR) -o $@ $^ $(LDLIBS)
+
 # Spike build targets
 $(SPIKE_CONFIGURE_STAMP):
 	@if [ ! -f "$(SPIKE_BUILD_DIR)/config.status" ]; then \
@@ -110,6 +123,26 @@ spike_build: $(SPIKE_CONFIGURE_STAMP)
 reconfigure_spike:
 	$(MAKE) clean_spike
 	$(MAKE) $(SPIKE_CONFIGURE_STAMP)
+
+# Mailbox firmware build
+MAILBOX_FIRMWARE_DIR = $(ROOT_DIR)/firmware/mailbox
+MAILBOX_FIRMWARE_SRC = $(MAILBOX_FIRMWARE_DIR)/build/firmware.elf
+
+.PHONY: build_mailbox_firmware
+build_mailbox_firmware:
+	cd $(MAILBOX_FIRMWARE_DIR) && \
+	$(MAKE) RISCV_PREFIX="$(RISCV_PATH)/bin/riscv64-unknown-elf-" PROJECT_ROOT="$(ROOT_DIR)" FIRMWARE_DIR="." BUILD_DIR="build" && \
+	mkdir -p $(BUILD_DIR)/firmware/mailbox && \
+	cp build/firmware.elf $(BUILD_DIR)/firmware/mailbox/
+
+# Mailbox build (phony target that depends on the actual executable)
+.PHONY: build_mailbox
+build_mailbox: $(MAILBOX_TARGET)
+
+# Mailbox test run
+.PHONY: run-mailbox
+run-mailbox: $(MAILBOX_TARGET) $(MAILBOX_FIRMWARE_SRC)
+	$(MAILBOX_TARGET) -l --log=$(BUILD_DIR)/mailbox/spike.log --log-commits $(MAILBOX_FIRMWARE_SRC)
 
 # Test program compilation
 TEST_SW_DIR = $(ROOT_DIR)/firmware/insn
@@ -138,7 +171,9 @@ clean_test:
 
 .PHONY: clean
 clean: clean_test
-	$(RM) $(EXTENSIONS_OBJ) $(EXTENSIONS_DEP) $(CUSTOM_SPIKE_OBJ) $(CUSTOM_SPIKE_DEP) $(TARGET) spike.log
+	$(RM) $(EXTENSIONS_OBJ) $(EXTENSIONS_DEP) $(CUSTOM_SPIKE_OBJ) $(CUSTOM_SPIKE_DEP) \
+	      $(SPIKE_MAILBOX_OBJ) $(SPIKE_MAILBOX_DEP) $(TARGET) $(MAILBOX_TARGET) spike.log
+	$(RM) -rf $(BUILD_DIR)/mailbox
 
 .PHONY: distclean
 distclean: clean clean_spike
@@ -146,10 +181,14 @@ distclean: clean clean_spike
 .PHONY: help
 help:
 	@echo "Available targets:"
-	@echo "  all           - Build static spike with extensions (default)"
-	@echo "  spike_build   - Build and install spike libraries"
-	@echo "  clean         - Remove built objects and executable"
-	@echo "  clean_spike   - Remove spike build and installation"
-	@echo "  distclean     - Clean everything"
-	@echo "  reconfigure_spike - Reconfigure spike build"
-	@echo "  run - spike test"
+	@echo "  all                - Build static spike with extensions (default)"
+	@echo "  spike_build        - Build and install spike libraries"
+	@echo "  build_mailbox      - Build spike_mailbox executable with all extensions"
+	@echo "  build_mailbox_firmware - Build mailbox firmware"
+	@echo "  run                - Run spike test with top-main"
+	@echo "  run-mailbox        - Run mailbox test"
+	@echo "  run-build          - Run test using build directory files"
+	@echo "  clean              - Remove built objects and executables"
+	@echo "  clean_spike        - Remove spike build and installation"
+	@echo "  distclean          - Clean everything"
+	@echo "  reconfigure_spike  - Reconfigure spike build"

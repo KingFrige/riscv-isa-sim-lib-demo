@@ -25,6 +25,8 @@
 - [x] printf 功能已成功集成到固件中。现在可以在 main.c 中使用 printf、sprintf 等函数，它们会通过 UART 输出到控制台。
 - [x] 在src/top下有一个新的顶层spike_mailbox, 依赖的文件在 src/top/extensions下，以及riscv-isa-sim, 在build_all.sh中创建新的构建函数，构建它
 - [x] 构建firemware/mailbox下的代码，来测试mailbox
+- [x] 更新构建的脚本，src/top下的spike_main.cc使用Makfile构建，但是spike_mailbox.cc使用build_all.sh内的命令构建，先统一到makefile构建
+- [x] spike_mailbox.cc暂时的构建没有 src/top/extensions/xperiv.cc 以及 src/top/custom/ 下的扩展，需要链接进行
 
 
 ## TODO
