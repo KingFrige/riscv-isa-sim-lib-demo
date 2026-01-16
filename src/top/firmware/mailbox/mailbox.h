@@ -27,6 +27,8 @@
 #define MAILBOX_CMD_VECTOR_STORE   0x00000011
 #define MAILBOX_CMD_VECTOR_COMPUTE 0x00000012
 #define MAILBOX_CMD_SOFTMAX        0x00000020
+#define MAILBOX_CMD_EXP            0x00000021
+#define MAILBOX_CMD_QUANT          0x00000022
 
 // 错误码定义
 #define MAILBOX_SUCCESS           0x00000000
@@ -48,6 +50,8 @@ uint32_t handle_vector_load(uint64_t data_addr, uint32_t data_size, uint64_t vec
 uint32_t handle_vector_store(uint64_t data_addr, uint32_t data_size, uint64_t vector_config);
 uint32_t handle_vector_compute(uint64_t data_addr, uint32_t data_size, uint64_t vector_config);
 uint32_t handle_softmax_command(uint64_t data_addr, uint32_t data_size, uint64_t vector_config);
+uint32_t handle_exp_command(uint64_t data_addr, uint32_t data_size, uint64_t vector_config);
+uint32_t handle_quant_command(uint64_t data_addr, uint32_t data_size, uint64_t vector_config);
 
 // 工具函数
 void delay(uint32_t cycles);

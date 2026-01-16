@@ -4,12 +4,13 @@
 
 本项目演示如何将 [RISC-V ISA 模拟器 (Spike)](https://github.com/riscv-software-src/riscv-isa-sim) 作为库使用，并与外部模拟器环境集成。项目已进一步扩展，集成了针对 Llama.cpp 的 RISC-V 向量扩展，专门用于 AI 推理加速的自定义指令集扩展。
 
-目前包含五个主要用例：
+目前包含六个主要用例：
 1. **C++ 内存模拟器集成** - 将 Spike 与自定义 C++ 内存模拟器连接
 2. **SystemC 包装器** - 将 Spike 嵌入 SystemC 环境，创建完整的系统级仿真平台
 3. **静态链接 Spike** - 将自定义扩展与 Spike 静态链接，创建独立的可执行文件（已实现）
 4. **AI 推理 RISC-V 向量扩展** - 为 AI 推理实现自定义的 exp、softmax、quant 指令
 5. **Mailbox 通信框架** - 提供主机程序与模拟器固件之间的通信机制
+6. **Fuse 固件测试** - 使用 Mailbox 通信框架测试自定义指令（exp、softmax、quant 等）
 
 此外，项目还包含一个实验性扩展示例 (`src/xperimental`)，展示了如何为 Spike 添加自定义指令扩展。
 
@@ -28,14 +29,16 @@
 .
 ├── build/                  # 统一构建输出目录
 │   ├── firmware/           # 固件构建输出
-│   │   ├── insn/           # 指令测试固件
-│   │   └── mailbox/        # Mailbox 通信固件
-│   ├── mailbox/            # Mailbox 包装器构建输出
-│   ├── spike-install/      # Spike 安装目录
-│   └── top/                # top wrapper 构建输出
+│   │   ├── fuse/          # Fuse 固件（Mailbox 通信测试）
+│   │   ├── insn/          # 指令测试固件
+│   │   └── mailbox/       # Mailbox 通信固件
+│   ├── mailbox/           # Mailbox 包装器构建输出
+│   ├── spike-install/     # Spike 安装目录
+│   └── top/               # top wrapper 构建输出
 ├── docs/                   # 项目文档
 │   ├── insn-decode.jpg     # 指令解码图示
-│   └── insn.jpg            # 指令图示
+│   ├── insn.jpg            # 指令图示
+│   └── spike_mailbox.README.md # Mailbox 功能说明
 ├── riscv-isa-sim/          # Spike 子模块 (RISC-V ISA 模拟器)
 ├── src/                    # 源代码目录
 │   ├── cpp/                # C++ 内存模拟器集成
@@ -55,6 +58,7 @@
 │   │   ├── Makefile        # 构建配置
 │   │   └── README.md       # 详细使用说明
 │   ├── top/                # 静态链接 Spike 集成 + AI 扩展
+│   │   ├── build/          # 构建输出目录
 │   │   ├── custom/         # 自定义 RISC-V 扩展算法实现
 │   │   │   ├── config.h    # 配置文件
 │   │   │   ├── util.c/h    # 工具函数
@@ -82,27 +86,35 @@
 │   │   │   ├── xperia.cc   # 标量扩展（加法）
 │   │   │   └── xperiv.cc   # 向量扩展（加法、乘法及 AI 指令）
 │   │   ├── firmware/       # 测试固件
+│   │   │   ├── common/     # 通用固件代码
+│   │   │   ├── fuse/       # Fuse 固件（Mailbox 通信测试）
+│   │   │   │   ├── Makefile      # 构建配置
+│   │   │   │   ├── README.md     # 说明文档
+│   │   │   │   ├── mailbox.c/h   # Mailbox 实现
+│   │   │   │   ├── main.c        # 主程序
+│   │   │   │   └── test_insn.c   # 指令测试
 │   │   │   ├── insn/       # 指令测试固件
 │   │   │   │   ├── main.c  # 测试程序（包含 exp/softmax/quant 测试）
 │   │   │   │   ├── start.S # 启动代码
 │   │   │   │   ├── script.ld # 链接脚本
 │   │   │   │   ├── util.c/h # 工具函数
 │   │   │   │   └── Makefile # 固件构建配置
-│   │   │   └── mailbox/    # Mailbox 通信固件
-│   │   │       ├── include/ # 头文件
-│   │   │       ├── linker/ # 链接脚本
-│   │   │       ├── src/     # 源代码
-│   │   │       ├── Makefile # 构建配置
-│   │   │       └── README.md # 说明文档
-│   │   ├── spike_insn.cc   # 自定义 Spike 主程序
+│   │   │   ├── mailbox/    # Mailbox 通信固件
+│   │   │   │   ├── include/ # 头文件
+│   │   │   │   ├── linker/ # 链接脚本
+│   │   │   │   ├── src/     # 源代码
+│   │   │   │   ├── Makefile # 构建配置
+│   │   │   │   └── README.md # 说明文档
+│   │   │   └── generic.mk   # 通用 Makefile 模板
+│   │   ├── spike_insn.cc   # 自定义 Spike 主程序（指令测试）
 │   │   ├── spike_mailbox.cc # Mailbox 测试主程序
-│   ├── spike_mailbox.README.md # Mailbox 功能说明
 │   │   └── Makefile        # 静态链接构建配置
 │   └── xperimental/        # 自定义扩展实验
 │       ├── xperimental_ext/    # 扩展实现 (.so 动态库)
 │       ├── xperimental_sw/     # 测试软件
 │       └── README.md           # 扩展使用指南
 ├── build_all.sh            # 统一构建脚本
+├── run-fuse.sh             # Fuse 测试快捷脚本
 ├── IFLOW.md                # 项目文档
 ├── LICENSE                 # 许可证文件
 ├── README.md               # 项目总览
@@ -140,16 +152,22 @@ source set-env.sh
 # 使用统一构建脚本（推荐）- 构建所有组件并运行测试
 bash build_all.sh --all
 
-# 或者只构建和运行指令测试
-bash build_all.sh --run-tests
+# 构建并运行指令测试
+bash build_all.sh --run-tests insn
 
-# 构建特定组件
-bash build_all.sh --spike           # 仅构建 Spike
-bash build_all.sh --firmware        # 仅构建指令固件
-bash build_all.sh --top             # 仅构建顶层包装器
-bash build_all.sh --mailbox-firmware # 仅构建 Mailbox 固件
-bash build_all.sh --spike-mailbox   # 仅构建 Mailbox 包装器
-bash build_all.sh --clean           # 清理构建目录
+# 构建特定固件类型
+bash build_all.sh --firmware insn    # 仅构建指令固件
+bash build_all.sh --firmware mailbox # 仅构建 Mailbox 固件
+bash build_all.sh --firmware fuse    # 仅构建 Fuse 固件
+bash build_all.sh --firmware all     # 构建所有固件
+
+# 构建特定包装器
+bash build_all.sh --top insn     # 仅构建 spike_insn
+bash build_all.sh --top mailbox  # 仅构建 spike_mailbox
+bash build_all.sh --top all      # 构建所有包装器
+
+# 清理构建目录
+bash build_all.sh --clean
 ```
 
 ### 4. 运行演示程序
@@ -180,7 +198,7 @@ make demo      # 编译
 
 ```bash
 # 使用统一构建脚本运行测试
-bash build_all.sh --run-tests
+bash build_all.sh --run-tests insn
 
 # 或者手动构建
 cd src/top
@@ -191,22 +209,39 @@ make run-build    # 使用 build/ 目录中的文件运行测试（生成 spike.
 # 直接运行测试程序
 ./build/top/top-main --isa=rv64imafdcv_zvl512b_zicsr_xperia_xperiv \
     -l --log=build/spike.log --log-commits \
-    --instructions=80000 build/firmware/insn/main.elf
+    --instructions=80000 build/firmware/insn/firmware.elf
 ```
 
 #### Mailbox 通信框架演示
 
 ```bash
 # 构建并运行 Mailbox 测试
-bash build_all.sh --all
+bash build_all.sh --run-tests mailbox
 
 # 或者单独构建
-bash build_all.sh --mailbox-firmware  # 构建 Mailbox 固件
-bash build_all.sh --spike-mailbox     # 构建 Mailbox 包装器
+bash build_all.sh --firmware mailbox  # 构建 Mailbox 固件
+bash build_all.sh --top mailbox       # 构建 spike_mailbox 包装器
 
 # 运行 Mailbox 测试
 ./build/mailbox/spike_mailbox -l --log=build/mailbox/spike.log \
-    ../firmware/mailbox/firmware.elf
+    build/firmware/mailbox/firmware.elf
+```
+
+#### Fuse 固件演示（Mailbox 通信测试）
+
+```bash
+# 构建 Fuse 固件和测试
+bash build_all.sh --firmware fuse    # 构建 Fuse 固件
+bash build_all.sh --top mailbox      # 确保 spike_mailbox 已构建
+
+# 运行 Fuse 测试
+bash build_all.sh --run-tests        # 自动运行 Fuse 测试
+
+# 或者使用快捷脚本
+bash run-fuse.sh
+
+# 单独运行 Fuse 调试
+bash build_all.sh -d --debug-fuse
 ```
 
 ### 5. 运行特定扩展测试
@@ -219,7 +254,7 @@ make spike_build
 make
 ./build/top-main --isa=rv64imafdcv_zvl512b_zicsr_xperia_xperiv \
     -l --log=build/spike.log --log-commits \
-    --instructions=80000 build/firmware/insn/main.elf
+    --instructions=80000 build/firmware/insn/firmware.elf
 
 # 使用 RISC-V 工具链编译固件
 cd src/top/firmware/insn
@@ -234,10 +269,10 @@ make all
 项目使用 `build_all.sh` 作为统一的构建脚本，将所有构建输出集中到 `build/` 目录下。该脚本支持以下功能：
 
 - 构建 Spike 模拟器
-- 构建指令测试固件
-- 构建 Mailbox 通信固件
-- 构建顶层包装器
-- 构建 Mailbox 包装器
+- 构建指令测试固件（insn）
+- 构建 Mailbox 通信固件（mailbox）
+- 构建 Fuse 固件（fuse）
+- 构建顶层包装器（spike_insn, spike_mailbox）
 - 运行测试
 - 管理构建依赖
 
@@ -245,16 +280,16 @@ make all
 
 | 命令 | 描述 |
 |------|------|
-| `bash build_all.sh` | 构建所有组件并运行测试 |
-| `bash build_all.sh --all` | 构建所有组件（包括 Mailbox）并运行测试 |
-| `bash build_all.sh --run-tests` | 构建并运行指令测试 |
+| `bash build_all.sh` | 构建所有组件 |
+| `bash build_all.sh --all` | 构建所有组件并运行所有测试 |
+| `bash build_all.sh --run-tests` | 构建并运行所有测试 |
+| `bash build_all.sh --run-tests insn` | 仅构建并运行指令测试 |
+| `bash build_all.sh --run-tests mailbox` | 仅构建并运行 Mailbox 测试 |
 | `bash build_all.sh --clean` | 清理构建目录 |
 | `bash build_all.sh --spike` | 仅构建 Spike |
-| `bash build_all.sh --firmware` | 仅构建指令固件 |
-| `bash build_all.sh --top` | 仅构建顶层包装器 |
-| `bash build_all.sh --mailbox-firmware` | 仅构建 Mailbox 固件 |
-| `bash build_all.sh --spike-mailbox` | 仅构建 Mailbox 包装器 |
-| `bash build_all.sh --run-mailbox` | 运行 Mailbox 测试 |
+| `bash build_all.sh --firmware insn\|mailbox\|fuse\|all` | 构建指定类型的固件 |
+| `bash build_all.sh --top insn\|mailbox\|all` | 构建指定类型的顶层包装器 |
+| `bash build_all.sh -d --debug-fuse` | 单独运行 Fuse 调试（跳过构建） |
 | `bash build_all.sh --help` | 显示帮助信息 |
 | `bash build_all.sh --riscv PATH` | 设置 RISC-V 工具链路径 |
 | `bash build_all.sh --spike-src PATH` | 设置 Spike 源码路径 |
@@ -291,11 +326,12 @@ Spike 作为子模块位于 `riscv-isa-sim/` 目录。构建过程会自动配�
 
 | 目标 | 描述 |
 |------|------|
-| `make all` 或 `make` | 构建静态链接的 `top-main` 可执行文件 |
-| `make spike_build` | 构建并安装 Spike 库 |
+| `make all` 或 `make` | 构建静态链接的 `spike_insn` 可执行文件 |
+| `make build_spike` | 构建并安装 Spike 库 |
+| `make build_mailbox_test` | 构建 `spike_mailbox` 可执行文件 |
 | `make reconfigure_spike` | 重新配置 Spike 构建 |
-| `make run` | 运行测试程序（使用完整指令集） |
-| `make run-build` | 使用构建目录中的文件运行测试 |
+| `make run_insn_test` | 运行指令测试程序 |
+| `make run_mailbox_test` | 运行 Mailbox 测试程序 |
 | `make clean` | 清理生成文件 |
 | `make clean_spike` | 清理 Spike 构建 |
 | `make distclean` | 清理所有生成文件 |
@@ -336,16 +372,39 @@ cd ../xperimental_sw
 make           # 构建测试程序 main.elf
 ```
 
+### Fuse 固件构建
+
+Fuse 固件使用 Mailbox 通信框架进行测试：
+
+```bash
+# 构建 Fuse 固件
+bash build_all.sh --firmware fuse
+
+# 运行 Fuse 测试
+bash build_all.sh --run-tests  # 会自动运行 Fuse 测试
+
+# 或者使用快捷脚本
+bash run-fuse.sh
+
+# 单独调试模式
+bash build_all.sh -d --debug-fuse
+```
+
+Fuse 固件输出文件：
+- `build/firmware/fuse/firmware.elf`: ELF 可执行文件
+- `build/firmware/fuse/firmware.bin`: 原始二进制
+- `build/firmware/fuse/firmware.dump`: 反汇编
+
 ### Mailbox 通信框架构建
 
 Mailbox 框架允许主机程序与运行在 Spike 模拟器中的固件进行通信：
 
 ```bash
 # 构建 Mailbox 固件
-bash build_all.sh --mailbox-firmware
+bash build_all.sh --firmware mailbox
 
 # 构建 spike_mailbox 可执行文件
-bash build_all.sh --spike-mailbox
+bash build_all.sh --top mailbox
 
 # 或者一起构建所有组件
 bash build_all.sh --all
@@ -430,7 +489,8 @@ Mailbox 设备提供主机与固件之间的通信机制：
 2. **头文件管理**: 公共头文件放置在对应目录的根级别
 3. **测试软件**: 每个演示都有对应的测试软件目录 (`sw/` 或 `firmware/`)
 4. **AI 扩展**: 算法实现在 `src/top/custom/riscv/` 中，Spike 扩展在 `src/top/extensions/` 中
-5. **Mailbox 框架**: 固件在 `firmware/mailbox/`，设备实现在 `extensions/mailbox.cc`
+5. **Mailbox 框架**: 固件在 `firmware/mailbox/` 和 `firmware/fuse/`，设备实现在 `extensions/mailbox.cc`
+6. **固件类型**: `insn/` 用于指令测试，`mailbox/` 用于通信测试，`fuse/` 用于 Mailbox 通信测试
 
 ### 构建系统
 
@@ -439,6 +499,7 @@ Mailbox 设备提供主机与固件之间的通信机制：
 - 支持环境变量覆盖配置
 - 提供 `clean` 目标确保可重复构建
 - Spike 构建通过子模块和自动化脚本管理
+- 固件构建使用 `generic.mk` 通用模板
 
 ### 扩展开发
 
@@ -459,16 +520,18 @@ Mailbox 设备提供主机与固件之间的通信机制：
 - `src/cpp/sw/`: C++ 演示的测试程序
 - `src/systemc/sw/`: SystemC 演示的测试程序
 - `src/top/firmware/insn/`: 静态链接演示的测试固件（包含 AI 指令测试）
-- `src/xperimental/xperimental_sw/`: 自定义扩展测试程序
+- `src/top/firmware/fuse/`: Fuse 固件（Mailbox 通信测试自定义指令）
 - `src/top/firmware/mailbox/`: Mailbox 通信测试固件
+- `src/xperimental/xperimental_sw/`: 自定义扩展测试程序
 
 ### 运行验证
 
 1. **基本功能验证**: 运行演示程序检查是否正确执行
-2. **扩展验证**: 使用 `top-main` 运行包含自定义扩展的程序
-3. **AI 指令验证**: 使用 `top-main` 运行包含 exp/softmax/quant 指令的测试程序
+2. **扩展验证**: 使用 `spike_insn` 运行包含自定义扩展的程序
+3. **AI 指令验证**: 使用 `spike_insn` 运行包含 exp/softmax/quant 指令的测试程序
 4. **日志分析**: 通过 `-l` 和 `--log` 参数生成执行日志
 5. **Mailbox 验证**: 使用 `spike_mailbox` 测试主机与固件的通信
+6. **Fuse 验证**: 使用 `spike_mailbox` 运行 fuse 固件测试 Mailbox 通信
 
 ### 调试支持
 
@@ -476,6 +539,7 @@ Mailbox 设备提供主机与固件之间的通信机制：
 - **远程调试**: 支持远程 bitbang 调试 (`--rbb-port`)
 - **JTAG 接口**: 集成 Spike 的 JTAG DTM 模块
 - **自定义扩展调试**: 扩展实现中包含 fprintf 输出用于调试
+- **Fuse 调试**: 使用 `-d --debug-fuse` 单独运行 Fuse 调试模式
 
 ## 测试框架和预期结果校验
 
@@ -489,6 +553,7 @@ Mailbox 设备提供主机与固件之间的通信机制：
 4. **自动化验证**: 测试程序自动验证指令执行结果
 5. **AI 精度测试**: 针对 BF16、MXFP8 等 AI 精度进行专门测试
 6. **LMUL 测试**: 针对不同向量长度乘数（1/2/4/8）进行测试
+7. **Mailbox 通信测试**: 使用 Fuse 固件测试 Mailbox 通信框架
 
 ### 测试错误代码
 
@@ -524,29 +589,42 @@ Mailbox 设备提供主机与固件之间的通信机制：
 - SOFTMAX 向量 Softmax 运算扩展 (`softmax`)
 - QUANT 向量量化扩展 (`quant`)
 - Mailbox 通信框架
+- Fuse 固件 Mailbox 通信测试
 
 🔧 **已修复的问题**:
 - EXP/softmax/quant 指令的 commit log 显示问题 - 已通过改进扩展实现修复
 - 提升了 LMUL (1/2/4/8) 不同配置下的测试覆盖
 - Mailbox 通信稳定性问题
+- 构建系统整合（统一使用 build_all.sh）
+
+📋 **待实现功能** (TODO):
+- [ ] Mailbox 的 cmd 请求添加 exp / quant 支持
+- [ ] 在 firmware/fuse 中添加 exp / quant 测试
+- [ ] 更新构建环境并测试，注意不破坏之前的 case
 
 ### 运行测试
 
 ```bash
 # 运行完整测试（包含 AI 指令）
-bash build_all.sh --run-tests
+bash build_all.sh --all
 
-# 或者手动运行
-cd src/top
-make run-build
-
-# 查看测试日志
-cat build/spike.log
+# 运行指令测试
+bash build_all.sh --run-tests insn
 
 # 运行 Mailbox 测试
-bash build_all.sh --all
-./build/mailbox/spike_mailbox -l --log=build/mailbox/spike.log \
-    build/firmware/mailbox/firmware.elf
+bash build_all.sh --run-tests mailbox
+
+# 运行所有测试（包括 Fuse）
+bash build_all.sh --run-tests
+
+# 查看测试日志
+cat build/insn/spike.log
+
+# 使用快捷脚本运行 Fuse 测试
+bash run-fuse.sh
+
+# 单独调试 Fuse（跳过构建）
+bash build_all.sh -d --debug-fuse
 ```
 
 ### 测试程序结构
@@ -559,6 +637,12 @@ bash build_all.sh --all
 4. **结果验证**: 验证每个指令的执行结果
 5. **错误处理**: 报告测试失败并传递错误代码
 6. **成功报告**: 通过 `tohost` 机制报告测试通过
+
+Fuse 测试程序 (`src/top/firmware/fuse/test_insn.c`) 包含：
+
+1. **Mailbox 通信**: 使用 Mailbox 框架进行命令处理
+2. **指令测试**: 测试 exp、softmax、quant 等自定义指令
+3. **结果验证**: 验证指令执行结果
 
 ### LMUL 测试覆盖
 
@@ -606,7 +690,13 @@ bash build_all.sh --all
    - 验证 Mailbox 包装器是否正确构建：`ls build/mailbox/spike_mailbox`
    - 查看通信日志：`cat build/mailbox/spike.log`
 
-7. **module load 命令不可用**
+7. **Fuse 测试失败**
+   - 检查 Fuse 固件是否构建：`ls build/firmware/fuse/firmware.elf`
+   - 验证 spike_mailbox 是否包含扩展：`ls build/mailbox/spike_mailbox`
+   - 查看 Fuse 日志：`cat build/mailbox/fuse.log`
+   - 使用调试模式运行：`bash build_all.sh -d --debug-fuse`
+
+8. **module load 命令不可用**
    - 手动设置 RISC-V 工具链路径：`export RISCV_PATH=/path/to/riscv/toolchain`
    - 更新 `set-env.sh` 文件，注释掉 `module load` 行
 
@@ -630,6 +720,11 @@ ls riscv-isa-sim/install/bin/spike 2>/dev/null || echo "Spike not installed"
 
 # 检查构建输出
 ls -la build/
+
+# 检查各固件是否构建
+ls build/firmware/insn/    # 指令测试固件
+ls build/firmware/mailbox/ # Mailbox 固件
+ls build/firmware/fuse/    # Fuse 固件
 ```
 
 ## 项目状态
@@ -648,6 +743,14 @@ ls -la build/
 - 增加更多测试用例（LMUL 测试）
 - 添加 Mailbox 通信框架
 - 固件集成 printf 功能
+- 统一构建系统（build_all.sh）
+- 新增 Fuse 固件测试
+- 改进固件构建系统（使用 generic.mk）
+- 添加 --firmware 和 --top 选项
+
+📋 **进行中的工作**:
+- Mailbox 的 cmd 请求添加 exp / quant 支持
+- 在 firmware/fuse 中添加 exp / quant 测试
 
 **注意**: 避免直接修改 `riscv-isa-sim/` 子模块中的代码，应通过外部层级和编译系统扩展功能。`src/top/` 目录展示了如何在不修改 Spike 源代码的情况下实现静态链接集成。
 
@@ -655,19 +758,22 @@ ls -la build/
 
 ### 新增功能
 
-1. **Mailbox 通信框架**: 提供主机程序与模拟器固件之间的通信机制
-2. **统一构建系统** (`build_all.sh`): 集中化构建流程，输出到 `build/` 目录
-3. **静态链接 Spike 集成** (`src/top/`): 实现了将自定义扩展与 Spike 静态链接的功能
-4. **AI 指令扩展**: 添加了 exp、softmax、quant 指令用于 AI 推理加速
-5. **改进的构建系统**: 支持静态链接方式，避免动态库依赖问题
-6. **完整测试框架**: 包含预期结果校验和错误报告机制
-7. **LMUL 测试覆盖**: 增加了对不同向量长度乘数 (1/2/4/8) 的测试
-8. **指令编码参考**: 根据 docs/insn-decode.jpg, docs/insn.jpg 实现扩展
-9. **算法集成**: 将算法实现放在 `src/top/custom/riscv/` 目录中
-10. **扩展测试**: 提取测试方法到测试函数中
-11. **Firmware 复杂测试**: 增加更多测试到 firmware 中
-12. **Custom 目录**: 创建 `src/top/custom/` 目录，包含完整的 RISC-V 扩展算法实现
-13. **固件 printf 支持**: 成功集成 printf 功能到固件中
+1. **Fuse 固件测试**: 新增 `firmware/fuse/` 目录，包含 Mailbox 通信测试固件
+2. **Mailbox 通信框架**: 提供主机程序与模拟器固件之间的通信机制
+3. **统一构建系统** (`build_all.sh`): 集中化构建流程，输出到 `build/` 目录
+4. **静态链接 Spike 集成** (`src/top/`): 实现了将自定义扩展与 Spike 静态链接的功能
+5. **AI 指令扩展**: 添加了 exp、softmax、quant 指令用于 AI 推理加速
+6. **改进的构建系统**: 支持静态链接方式，避免动态库依赖问题
+7. **完整测试框架**: 包含预期结果校验和错误报告机制
+8. **LMUL 测试覆盖**: 增加了对不同向量长度乘数 (1/2/4/8) 的测试
+9. **指令编码参考**: 根据 docs/insn-decode.jpg, docs/insn.jpg 实现扩展
+10. **算法集成**: 将算法实现放在 `src/top/custom/riscv/` 目录中
+11. **扩展测试**: 提取测试方法到测试函数中
+12. **Firmware 复杂测试**: 增加更多测试到 firmware 中
+13. **Custom 目录**: 创建 `src/top/custom/` 目录，包含完整的 RISC-V 扩展算法实现
+14. **固件 printf 支持**: 成功集成 printf 功能到固件中
+15. **run-fuse.sh 脚本**: 提供 Fuse 测试的快捷运行方式
+16. **通用固件构建**: 添加 generic.mk 模板统一固件构建配置
 
 ### 修复改进
 
@@ -677,6 +783,8 @@ ls -la build/
 4. **测试验证**: 增强了测试用例，包括不同 LMUL 配置下的验证
 5. **目录结构**: 改进了目录结构，将算法实现与扩展实现分离
 6. **Mailbox 稳定性**: 修复了 Mailbox 通信中的问题
+7. **构建系统**: 统一使用 build_all.sh 管理所有构建
+8. **固件类型**: 分离 insn/mailbox/fuse 固件类型
 
 ### 使用建议
 
@@ -685,12 +793,14 @@ ls -la build/
 - 参考 `src/top/Makefile` 了解如何集成新的扩展
 - 扩展开发时，确保指令编码不与现有指令冲突（使用 CUSTOM0-CUSTOM3 操作码空间）
 - AI 指令参考 `src/top/custom/riscv/` 中的算法实现
+- Mailbox 通信测试使用 `firmware/fuse/` 目录
 
 ### 已知限制
 
 - 当前测试固件使用固定内存地址，可能不适用于所有内存布局
 - SystemC 集成需要额外的 SystemC 库安装
 - Mailbox 通信目前仅支持特定的命令集
+- Fuse 固件中 exp/quant 命令待实现
 
 ## 贡献指南
 
@@ -702,6 +812,8 @@ ls -la build/
 6. AI 扩展需同时更新 `src/top/custom/` 和 `src/top/extensions/` 中的实现
 7. 确保新的扩展指令正确记录到 commit log 中
 8. 添加 Mailbox 功能时，更新 `spike_mailbox.README.md` 文档
+9. 添加新固件类型时，更新 `build_all.sh` 中的构建逻辑
+10. 更新 TODO 列表以跟踪待完成工作
 
 ## 许可证
 

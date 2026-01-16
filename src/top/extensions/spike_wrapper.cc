@@ -141,7 +141,11 @@ public:
             case mailbox_t::MAILBOX_CMD_VECTOR_COMPUTE:
                 return send_command(mailbox_t::MAILBOX_CMD_VECTOR_COMPUTE, data_addr, data_size, vector_config);
             case mailbox_t::MAILBOX_CMD_SOFTMAX:
-                return send_command(mailbox_t::MAILBOX_CMD_SOFTMAX, data_addr, data_size, vector_config);;
+                return send_command(mailbox_t::MAILBOX_CMD_SOFTMAX, data_addr, data_size, vector_config);
+            case mailbox_t::MAILBOX_CMD_EXP:
+                return send_command(mailbox_t::MAILBOX_CMD_EXP, data_addr, data_size, vector_config);
+            case mailbox_t::MAILBOX_CMD_QUANT:
+                return send_command(mailbox_t::MAILBOX_CMD_QUANT, data_addr, data_size, vector_config);
             default:
                 std::cerr << "[SpikeWrapper] Invalid command index: " << command_idx << std::endl;
                 return 0xFFFFFFFF;  // 错误码

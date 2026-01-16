@@ -38,6 +38,8 @@ public:
     static constexpr uint32_t MAILBOX_CMD_VECTOR_STORE   = 0x00000011;
     static constexpr uint32_t MAILBOX_CMD_VECTOR_COMPUTE = 0x00000012;
     static constexpr uint32_t MAILBOX_CMD_SOFTMAX        = 0x00000020;
+    static constexpr uint32_t MAILBOX_CMD_EXP            = 0x00000021;
+    static constexpr uint32_t MAILBOX_CMD_QUANT          = 0x00000022;
     
     // 错误码定义
     static constexpr uint32_t MAILBOX_SUCCESS           = 0x00000000;
@@ -89,6 +91,20 @@ public:
                                   uint32_t data_size = 0, uint64_t vector_config = 0,
                                   uint32_t timeout_ms = 2000, uint32_t poll_interval_us = 100,
                                   TriggerCallback trigger_callback = nullptr);
+
+    // 便捷方法：发送 EXP 命令
+    uint32_t send_exp_command(uint64_t data_addr, uint32_t data_size, uint64_t vector_config = 0,
+                              uint32_t timeout_ms = 2000, uint32_t poll_interval_us = 100) {
+        return send_command_complete(MAILBOX_CMD_EXP, data_addr, data_size, vector_config,
+                                     timeout_ms, poll_interval_us);
+    }
+
+    // 便捷方法：发送 QUANT 命令
+    uint32_t send_quant_command(uint64_t data_addr, uint32_t data_size, uint64_t vector_config = 0,
+                                uint32_t timeout_ms = 2000, uint32_t poll_interval_us = 100) {
+        return send_command_complete(MAILBOX_CMD_QUANT, data_addr, data_size, vector_config,
+                                     timeout_ms, poll_interval_us);
+    }
     
 private:
     const simif_t* sim;

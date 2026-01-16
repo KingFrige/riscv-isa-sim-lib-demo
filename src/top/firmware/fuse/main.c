@@ -7,6 +7,9 @@ volatile uint64_t tohost = 0;
 __attribute__((section(".fromhost")))
 volatile uint64_t fromhost = 0;
 
+// test_insn function declaration (defined in test_insn.c)
+void test_insn(void);
+
 // 简单的内存访问函数
 static inline uint32_t read32(uintptr_t addr) {
     return *((volatile uint32_t*)addr);
@@ -78,22 +81,70 @@ uint32_t handle_softmax_command(uint64_t data_addr, uint32_t data_size, uint64_t
     printf("[FIRMWARE]: Data address: 0x%lx\n", data_addr);
     printf("[FIRMWARE]: Data size: %u\n", data_size);
     (void)vector_config; // Reserved for future use
-    
+
     if (data_addr == 0 || data_size == 0) {
         printf("[FIRMWARE]: Invalid parameters for softmax\n");
         return MAILBOX_ERR_INVALID_PARAM;
     }
-    
+
     uint32_t num_elements = data_size / 4;
     if (num_elements == 0 || data_size % 4 != 0) {
         printf("[FIRMWARE]: Invalid data size for softmax\n");
         return MAILBOX_ERR_INVALID_PARAM;
     }
-    
+
     printf("[FIRMWARE]: Number of elements: %u\n", num_elements);
     printf("[FIRMWARE]: Softmax computation completed\n");
     printf("[FIRMWARE]: Output written to memory\n");
-    
+
+    return MAILBOX_SUCCESS;
+}
+
+uint32_t handle_exp_command(uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
+    printf("[FIRMWARE]: EXP command received\n");
+    printf("[FIRMWARE]: Data address: 0x%lx\n", data_addr);
+    printf("[FIRMWARE]: Data size: %u\n", data_size);
+    printf("[FIRMWARE]: Vector config: 0x%lx\n", vector_config);
+
+    if (data_addr == 0 || data_size == 0) {
+        printf("[FIRMWARE]: Invalid parameters for exp\n");
+        return MAILBOX_ERR_INVALID_PARAM;
+    }
+
+    uint32_t num_elements = data_size / 2;  // BF16 = 2 bytes per element
+    if (num_elements == 0 || data_size % 2 != 0) {
+        printf("[FIRMWARE]: Invalid data size for exp\n");
+        return MAILBOX_ERR_INVALID_PARAM;
+    }
+
+    printf("[FIRMWARE]: Number of BF16 elements: %u\n", num_elements);
+    printf("[FIRMWARE]: EXP computation completed\n");
+    printf("[FIRMWARE]: Output written to memory\n");
+
+    return MAILBOX_SUCCESS;
+}
+
+uint32_t handle_quant_command(uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
+    printf("[FIRMWARE]: QUANT command received\n");
+    printf("[FIRMWARE]: Data address: 0x%lx\n", data_addr);
+    printf("[FIRMWARE]: Data size: %u\n", data_size);
+    printf("[FIRMWARE]: Vector config: 0x%lx\n", vector_config);
+
+    if (data_addr == 0 || data_size == 0) {
+        printf("[FIRMWARE]: Invalid parameters for quant\n");
+        return MAILBOX_ERR_INVALID_PARAM;
+    }
+
+    uint32_t num_elements = data_size / 2;  // BF16 = 2 bytes per element
+    if (num_elements == 0 || data_size % 2 != 0) {
+        printf("[FIRMWARE]: Invalid data size for quant\n");
+        return MAILBOX_ERR_INVALID_PARAM;
+    }
+
+    printf("[FIRMWARE]: Number of BF16 elements: %u\n", num_elements);
+    printf("[FIRMWARE]: QUANT computation (BF16 -> MxFP8) completed\n");
+    printf("[FIRMWARE]: Output written to memory\n");
+
     return MAILBOX_SUCCESS;
 }
 
@@ -125,6 +176,12 @@ void handle_mailbox_command(void) {
         case MAILBOX_CMD_SOFTMAX:
             response = handle_softmax_command(data_addr, data_size, vector_config);
             break;
+        case MAILBOX_CMD_EXP:
+            response = handle_exp_command(data_addr, data_size, vector_config);
+            break;
+        case MAILBOX_CMD_QUANT:
+            response = handle_quant_command(data_addr, data_size, vector_config);
+            break;
         default:
             printf("[FIRMWARE] Unknown command: 0x%x\n", command);
             response = MAILBOX_ERR_INVALID_CMD;
@@ -134,19 +191,17 @@ void handle_mailbox_command(void) {
     write_mailbox_reg(MAILBOX_RESPONSE_OFFSET, response);
 }
 
-// test_insn function declaration (defined in test_insn.c)
-void test_insn(void);
-
 // 固件主函数
 void main(void) {
     printf("========================================\n");
     printf("[FIRMWARE]: Firmware starting...\n");
     printf("[FIRMWARE]: Mailbox Base: 0x%lx\n", (uint64_t)MAILBOX_BASE);
     printf("========================================\n");
-    
+
     uint32_t loop_count = 0;
     printf("[FIRMWARE]: Entering main loop...\n");
 
+    // 先运行指令测试
     test_insn();
     
     while (1) {

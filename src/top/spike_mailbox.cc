@@ -238,48 +238,129 @@ TestResult test_vector_compute_command(SpikeWrapper& wrapper) {
  */
 TestResult test_softmax_command(SpikeWrapper& wrapper) {
     std::cout << "\n--- Testing SOFTMAX command ---" << std::endl;
-    
+
     // 创建测试数据（5个浮点数）
     std::vector<float> test_data = {0.0f, 1.0f, 2.0f, 3.0f, 4.0f};
     TestBuffer buffer(test_data, "Softmax Test");
     buffer.print_info();
-    
+
     std::cout << "Input data: [";
     for (size_t i = 0; i < test_data.size(); i++) {
         if (i > 0) std::cout << ", ";
         std::cout << test_data[i];
     }
     std::cout << "]" << std::endl;
-    
+
     // 计算参考结果（用于验证）
     std::vector<float> reference_result(test_data.size());
     float max_val = test_data[0];
     for (float val : test_data) {
         if (val > max_val) max_val = val;
     }
-    
+
     float sum_exp = 0.0f;
     for (float val : test_data) {
         sum_exp += std::exp(val - max_val);
     }
-    
+
     for (size_t i = 0; i < test_data.size(); i++) {
         reference_result[i] = std::exp(test_data[i] - max_val) / sum_exp;
     }
-    
+
     std::cout << "Reference result: [";
     for (size_t i = 0; i < reference_result.size(); i++) {
         if (i > 0) std::cout << ", ";
         std::cout << reference_result[i];
     }
     std::cout << "]" << std::endl;
-    
+
     uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_SOFTMAX, buffer.address(), buffer.size(), 0);
-    
+
     if (response == mailbox_t::MAILBOX_SUCCESS) {
         return TestResult("SOFTMAX command", true, "Executed successfully");
     } else {
         return TestResult("SOFTMAX command", false, "Failed", response);
+    }
+}
+
+/**
+ * @brief 测试 EXP 命令
+ */
+TestResult test_exp_command(SpikeWrapper& wrapper) {
+    std::cout << "\n--- Testing EXP command ---" << std::endl;
+
+    // 创建测试数据（5个浮点数）
+    std::vector<float> test_data = {0.0f, 0.5f, 1.0f, 1.5f, 2.0f};
+    TestBuffer buffer(test_data, "EXP Test");
+    buffer.print_info();
+
+    std::cout << "Input data: [";
+    for (size_t i = 0; i < test_data.size(); i++) {
+        if (i > 0) std::cout << ", ";
+        std::cout << test_data[i];
+    }
+    std::cout << "]" << std::endl;
+
+    // 计算参考结果（e^x）
+    std::vector<float> reference_result(test_data.size());
+    for (size_t i = 0; i < test_data.size(); i++) {
+        reference_result[i] = std::exp(test_data[i]);
+    }
+
+    std::cout << "Reference result (e^x): [";
+    for (size_t i = 0; i < reference_result.size(); i++) {
+        if (i > 0) std::cout << ", ";
+        std::cout << reference_result[i];
+    }
+    std::cout << "]" << std::endl;
+
+    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_EXP, buffer.address(), buffer.size(), 0);
+
+    if (response == mailbox_t::MAILBOX_SUCCESS) {
+        return TestResult("EXP command", true, "Executed successfully");
+    } else {
+        return TestResult("EXP command", false, "Failed", response);
+    }
+}
+
+/**
+ * @brief 测试 QUANT 命令
+ */
+TestResult test_quant_command(SpikeWrapper& wrapper) {
+    std::cout << "\n--- Testing QUANT command ---" << std::endl;
+
+    // 创建测试数据（5个浮点数）
+    std::vector<float> test_data = {0.0f, 0.5f, 1.0f, 1.5f, 2.0f};
+    TestBuffer buffer(test_data, "QUANT Test");
+    buffer.print_info();
+
+    std::cout << "Input data: [";
+    for (size_t i = 0; i < test_data.size(); i++) {
+        if (i > 0) std::cout << ", ";
+        std::cout << test_data[i];
+    }
+    std::cout << "]" << std::endl;
+
+    // 计算参考结果（量化后的值）
+    std::vector<float> reference_result(test_data.size());
+    for (size_t i = 0; i < test_data.size(); i++) {
+        // 简单的量化：乘以 2 并四舍五入
+        reference_result[i] = std::round(test_data[i] * 2.0f) / 2.0f;
+    }
+
+    std::cout << "Reference result (quantized): [";
+    for (size_t i = 0; i < reference_result.size(); i++) {
+        if (i > 0) std::cout << ", ";
+        std::cout << reference_result[i];
+    }
+    std::cout << "]" << std::endl;
+
+    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_QUANT, buffer.address(), buffer.size(), 0);
+
+    if (response == mailbox_t::MAILBOX_SUCCESS) {
+        return TestResult("QUANT command", true, "Executed successfully");
+    } else {
+        return TestResult("QUANT command", false, "Failed", response);
     }
 }
 
@@ -465,6 +546,8 @@ int main(int argc, char* argv[]) {
         {"Vector Store", test_vector_store_command},
         {"Vector Compute", test_vector_compute_command},
         {"Softmax", test_softmax_command},
+        {"EXP", test_exp_command},
+        {"QUANT", test_quant_command},
         {"Invalid command", test_invalid_command},
         {"Performance", test_performance}
     };
