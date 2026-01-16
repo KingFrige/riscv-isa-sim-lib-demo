@@ -14,6 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
 BUILD_DIR="$PROJECT_ROOT/build"
 INSTALL_DIR="$PROJECT_ROOT/build/spike-install"  # Changed to avoid conflicts
+LOG_DIR="$PROJECT_ROOT/log"
 
 # Default paths (override with environment variables)
 RISCV_TOOLCHAIN="${RISCV_TOOLCHAIN:-/opt/riscv}"
@@ -237,6 +238,9 @@ build_top_wrapper() {
 run_insn_tests() {
     log_info "Running insn tests..."
     
+    # 确保日志目录存在
+    mkdir -p "$LOG_DIR"
+    
     # Set environment variables
     export SPIKE_INSTALL_DIR="$PROJECT_ROOT/riscv-isa-sim/install"
     export SPIKE_SOURCE_DIR="$SPIKE_SRC_DIR"
@@ -256,13 +260,21 @@ run_insn_tests() {
     # Run the test using the Makefile target which ensures consistent execution
     log_info "Running insn tests using files from $BUILD_DIR/insn/..."
     cd "$PROJECT_ROOT/src/top"
-    make run_insn_test BUILD_DIR="$PROJECT_ROOT/build"
-    log_success "INSN tests completed and log saved to $BUILD_DIR/insn/spike.log"
+    
+    # 捕获标准输出和日志文件
+    local LOG_FILE="$LOG_DIR/info_insn.log"
+    make run_insn_test BUILD_DIR="$PROJECT_ROOT/build" LOG_DIR="$LOG_DIR" 2>&1 | tee "$LOG_FILE"
+    
+    cd "$PROJECT_ROOT"
+    log_success "INSN tests completed. Log saved to $LOG_FILE"
 }
 
 run_mailbox_tests() {
     log_info "Running mailbox tests..."
 
+    # 确保日志目录存在
+    mkdir -p "$LOG_DIR"
+    
     # Set environment variables
     export SPIKE_INSTALL_DIR="$PROJECT_ROOT/riscv-isa-sim/install"
     export SPIKE_SOURCE_DIR="$SPIKE_SRC_DIR"
@@ -270,9 +282,13 @@ run_mailbox_tests() {
 
     # Run mailbox test using Makefile
     cd "$PROJECT_ROOT/src/top"
-    	make run_mailbox_test BUILD_DIR="$BUILD_DIR"
+    
+    # 捕获标准输出和日志文件
+    local LOG_FILE="$LOG_DIR/info_mailbox.log"
+    make run_mailbox_test BUILD_DIR="$BUILD_DIR" LOG_DIR="$LOG_DIR" 2>&1 | tee "$LOG_FILE"
+    
     cd "$PROJECT_ROOT"
-    log_success "Mailbox tests completed"
+    log_success "Mailbox tests completed. Log saved to $LOG_FILE"
 }
 
 # Clean build
@@ -284,6 +300,11 @@ clean_build() {
     
     rm -rf "$PROJECT_ROOT/src/top/build"
     log_success "src/top/build directory cleaned"
+    
+    # 清空日志目录
+    if [ -d "$LOG_DIR" ]; then
+        rm -rf "$LOG_DIR"
+    fi
 }
 
 
@@ -356,6 +377,9 @@ build_fuse_firmware() {
 run_fuse_tests() {
     log_info "Running fuse tests..."
 
+    # 确保日志目录存在
+    mkdir -p "$LOG_DIR"
+    
     # Set environment variables
     export SPIKE_INSTALL_DIR="$PROJECT_ROOT/riscv-isa-sim/install"
     export SPIKE_SOURCE_DIR="$SPIKE_SRC_DIR"
@@ -363,15 +387,22 @@ run_fuse_tests() {
 
     # Run fuse test using the mailbox test wrapper with fuse firmware
     cd "$PROJECT_ROOT/src/top"
-    make run_mailbox_test BUILD_DIR="$BUILD_DIR" FIRMWARE_ELF="$BUILD_DIR/firmware/fuse/firmware.elf"
+    
+    # 捕获标准输出和日志文件
+    local LOG_FILE="$LOG_DIR/info_fuse.log"
+    make run_mailbox_test BUILD_DIR="$BUILD_DIR" LOG_DIR="$LOG_DIR" FIRMWARE_ELF="$BUILD_DIR/firmware/fuse/firmware.elf" 2>&1 | tee "$LOG_FILE"
+    
     cd "$PROJECT_ROOT"
-    log_success "Fuse tests completed"
+    log_success "Fuse tests completed. Log saved to $LOG_FILE"
 }
 
 # Run fuse debug - directly execute fuse ELF for debugging
 run_fuse_debug() {
     log_info "Running fuse debug..."
 
+    # 确保日志目录存在
+    mkdir -p "$LOG_DIR"
+    
     # Set environment variables
     export SPIKE_INSTALL_DIR="$PROJECT_ROOT/riscv-isa-sim/install"
     export SPIKE_SOURCE_DIR="$SPIKE_SRC_DIR"
@@ -380,7 +411,7 @@ run_fuse_debug() {
 
     local FIRMWARE_ELF="$BUILD_DIR/firmware/fuse/firmware.elf"
     local SPIKE_MAILBOX="$BUILD_DIR/mailbox/spike_mailbox"
-    local LOG_FILE="$BUILD_DIR/mailbox/fuse.log"
+    local LOG_FILE="$LOG_DIR/info_fuse-debug.log"
 
     # Verify files exist
     if [ ! -f "$SPIKE_MAILBOX" ]; then
@@ -396,7 +427,7 @@ run_fuse_debug() {
     fi
 
     log_info "Executing: $SPIKE_MAILBOX -l --log=$LOG_FILE --log-commits $FIRMWARE_ELF"
-    $SPIKE_MAILBOX -l --log="$LOG_FILE" --log-commits "$FIRMWARE_ELF"
+    $SPIKE_MAILBOX -l --log="$LOG_FILE" --log-commits "$FIRMWARE_ELF" 2>&1 | tee -a "$LOG_FILE"
     
     log_success "Fuse debug completed. Log saved to $LOG_FILE"
 }
@@ -438,11 +469,11 @@ Options:
   -h, --help              Show this help message
   -c, --clean             Clean build directories before building
   -s, --spike             Build only Spike
-  -f, --firmware [TYPE]   Build firmware (TYPE: insn|mailbox|all, default: all)
+  -f, --firmware [TYPE]   Build firmware (TYPE: insn|mailbox|fuse|all, default: all)
   -t, --top [TYPE]        Build top wrappers (TYPE: insn|mailbox|all, default: all)
-  -r, --run-tests [TYPE]  Build and run tests (TYPE: insn|mailbox|all, default: all)
+  -r, --run-tests [TYPE]  Build and run tests (TYPE: insn|mailbox|fuse|all, default: all)
   -d, --debug-fuse        Run fuse debug directly (skip all builds)
-  --all                   Build everything and run tests
+  --all                   Build everything and run all tests (insn + mailbox + fuse)
   --riscv PATH            Set RISC-V toolchain path (default: /opt/riscv)
   --spike-src PATH        Set Spike source path (default: ./riscv-isa-sim)
 
@@ -455,16 +486,18 @@ Environment variables:
   TESTS_BUILD_DIR     Path to tests build directory
 
 Examples:
-  $0                      # Build everything
+  $0                      # Build everything and run all tests
   $0 --clean              # Clean and build everything
   $0 --spike --firmware   # Build only Spike and firmware
   $0 -t                   # Build all top wrappers (spike_insn + spike_mailbox)
   $0 -t insn              # Build only spike_insn
   $0 -t mailbox           # Build only spike_mailbox
-  $0 -r                   # Build and run all tests (spike_insn + mailbox)
+  $0 -r                   # Build and run all tests (insn + mailbox + fuse)
   $0 -r insn              # Build and run spike_insn tests only
   $0 -r mailbox           # Build and run mailbox tests only
-  $0 --all                # Build everything and run tests
+  $0 -r fuse              # Build and run fuse tests only
+  $0 --all                # Build everything and run all tests
+  $0 -d                   # Run fuse debug directly (skip builds)
 
   # Custom paths
   RISCV_TOOLCHAIN=~/riscv SPIKE_SRC_DIR=~/spike $0
@@ -534,8 +567,7 @@ parse_args() {
                 build_mailbox_test_flag=1
                 run_insn_tests_flag=1
                 run_mailbox_tests_flag=1
-                run_fuse_tests_flag=1
-                # Check for optional type argument (insn|mailbox|all)
+                # Check for optional type argument (insn|mailbox|fuse|all)
                 if [[ -n "$2" && "$2" != -* ]]; then
                     case "$2" in
                         insn)
@@ -545,11 +577,23 @@ parse_args() {
                         mailbox)
                             run_insn_tests_flag=0
                             ;;
+                        fuse)
+                            # 仅运行 fuse 测试
+                            run_insn_tests_flag=0
+                            build_top_flag=0
+                            run_mailbox_tests_flag=0
+                            build_mailbox_test_flag=0
+                            run_fuse_tests_flag=1
+                            ;;
                         all)
-                            # Default behavior
+                            # 默认行为 - 运行所有测试
+                            run_fuse_tests_flag=1
                             ;;
                     esac
                     shift
+                else
+                    # 无参数时默认运行所有测试
+                    run_fuse_tests_flag=1
                 fi
                 shift
                 ;;
@@ -567,7 +611,7 @@ parse_args() {
                 shift
                 ;;
             --all)
-                # Build everything and run tests
+                # Build everything and run tests (insn + mailbox + fuse)
                 build_spike_flag=1
                 build_firmware_flag="all"
                 build_top_flag=1
@@ -595,7 +639,7 @@ parse_args() {
     done
     
     # Create directories
-    mkdir -p "$BUILD_DIR" "$INSTALL_DIR"
+    mkdir -p "$BUILD_DIR" "$INSTALL_DIR" "$LOG_DIR"
     
     # Build components as needed
     if [ $build_spike_flag -eq 1 ]; then
@@ -655,6 +699,7 @@ main() {
     log_info "Project root: $PROJECT_ROOT"
     log_info "Build directory: $BUILD_DIR"
     log_info "Install directory: $INSTALL_DIR"
+    log_info "Log directory: $LOG_DIR"
     log_info "RISC-V toolchain: $RISCV_TOOLCHAIN"
     log_info "Spike source: $SPIKE_SRC_DIR"
     
@@ -668,6 +713,11 @@ main() {
     
     log_success "Build completed successfully!"
     log_info "Installation directory: $INSTALL_DIR"
+    log_info "Logs saved to: $LOG_DIR/"
+    log_info "  - info_insn.log      (insn test output)"
+    log_info "  - info_mailbox.log   (mailbox test output)"
+    log_info "  - info_fuse.log      (fuse test output)"
+    log_info "  - info_fuse-debug.log (fuse debug output)"
 }
 
 # Run main function

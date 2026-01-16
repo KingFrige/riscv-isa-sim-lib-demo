@@ -166,7 +166,7 @@ build_insn_test: build_insn_firmware $(INSN_TARGET)
 .PHONY: run_insn_test
 run_insn_test: $(INSN_TARGET) $(INSN_FIRMWARE_ELF)
 	$(INSN_TARGET) --isa=rv64gcv_zvl512b_zicsr_xperia_xperiv \
-		-l --log=$(BUILD_DIR)/insn/spike.log --log-commits \
+		-l --log=$(LOG_DIR)/spike_insn.log --log-commits \
 		--instructions=80000 $(INSN_FIRMWARE_ELF)
 
 # Clean insn build
@@ -202,9 +202,9 @@ build_mailbox_test: build_mailbox_firmware $(MAILBOX_TARGET)
 .PHONY: run_mailbox_test
 run_mailbox_test: $(MAILBOX_TARGET)
 ifeq ($(FIRMWARE_ELF),)
-	$(MAILBOX_TARGET) -l --log=$(MAILBOX_BUILD_DIR)/spike.log --log-commits $(MAILBOX_FIRMWARE_ELF)
+	$(MAILBOX_TARGET) -l --log=$(LOG_DIR)/spike_mailbox.log --log-commits $(MAILBOX_FIRMWARE_ELF)
 else
-	$(MAILBOX_TARGET) -l --log=$(MAILBOX_BUILD_DIR)/spike.log --log-commits $(FIRMWARE_ELF)
+	$(MAILBOX_TARGET) -l --log=$(LOG_DIR)/spike_fuse.log --log-commits $(FIRMWARE_ELF)
 endif
 
 # Clean mailbox build

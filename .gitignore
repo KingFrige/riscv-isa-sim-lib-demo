@@ -15,5 +15,6 @@ src/sw/start.o
 *.lst
 tags
 log.txt
+log/
 build/
 *.swp
