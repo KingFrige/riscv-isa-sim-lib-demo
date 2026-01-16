@@ -136,22 +136,46 @@ build_firmware() {
     # Set required environment variable
     export RISCV_PATH="$RISCV_TOOLCHAIN"
     
-    # Build the firmware
-    make RISCV_PATH="$RISCV_TOOLCHAIN"
-    
-    # Copy the built firmware to the project build directory
-    mkdir -p "$BUILD_DIR/firmware/insn"
-    if [ -f "main.elf" ]; then
-        cp "main.elf" "$BUILD_DIR/firmware/insn"
-        log_success "Firmware copied to $BUILD_DIR/firmware/insn"
+    # Build the firmware - Makefile will output to BUILD_DIR automatically
+    make RISCV_PATH="$RISCV_TOOLCHAIN" BUILD_DIR="$BUILD_DIR/firmware/insn"
+
+    # Verify firmware was built
+    if [ -f "$BUILD_DIR/firmware/insn/firmware.elf" ]; then
+        log_success "Firmware built to $BUILD_DIR/firmware/insn/firmware.elf"
     else
-        log_error "Firmware not found"
+        log_error "Firmware not found at $BUILD_DIR/firmware/insn/firmware.elf"
         return 1
     fi
     
     # Return to project root
     cd "$PROJECT_ROOT"
     log_success "Firmware built successfully"
+}
+
+# Build mailbox firmware
+build_mailbox_firmware() {
+    log_info "Building mailbox firmware..."
+    
+    # Change to mailbox firmware directory and build
+    cd "$PROJECT_ROOT/src/top/firmware/mailbox"
+    
+    # Set required environment variable
+    export RISCV_PATH="$RISCV_TOOLCHAIN"
+    
+    # Build the firmware - Makefile will output to BUILD_DIR automatically
+    make RISCV_PATH="$RISCV_TOOLCHAIN" BUILD_DIR="$BUILD_DIR/firmware/mailbox"
+
+    # Verify firmware was built
+    if [ -f "$BUILD_DIR/firmware/mailbox/firmware.elf" ]; then
+        log_success "Mailbox firmware built to $BUILD_DIR/firmware/mailbox/firmware.elf"
+    else
+        log_error "Mailbox firmware not found at $BUILD_DIR/firmware/mailbox/firmware.elf"
+        return 1
+    fi
+    
+    # Return to project root
+    cd "$PROJECT_ROOT"
+    log_success "Mailbox firmware built successfully"
 }
 
 # Build top wrapper
@@ -195,9 +219,9 @@ build_top_wrapper() {
     fi
     
     # Copy firmware if built
-    if [ -f "$TOP_BUILD_DIR/firmware/insn/main.elf" ]; then
+    if [ -f "$TOP_BUILD_DIR/firmware/insn/firmware.elf" ]; then
         mkdir -p "$BUILD_DIR/firmware"
-        cp "$TOP_BUILD_DIR/firmware/insn/main.elf" "$BUILD_DIR/firmware/"
+        cp "$TOP_BUILD_DIR/firmware/insn/firmware.elf" "$BUILD_DIR/firmware/"
         log_success "Firmware copied to $BUILD_DIR/firmware/"
     fi
     
@@ -221,8 +245,8 @@ run_tests() {
         return 1
     fi
     
-    if [ ! -f "$BUILD_DIR/firmware/insn/main.elf" ]; then
-        log_error "main.elf not found in $BUILD_DIR/firmware/insn. Please build the firmware first."
+    if [ ! -f "$BUILD_DIR/firmware/insn/firmware.elf" ]; then
+        log_error "firmware.elf not found in $BUILD_DIR/firmware/insn. Please build the firmware first."
         return 1
     fi
     
@@ -332,18 +356,15 @@ Spike Wrapper Build Script
 Usage: $0 [OPTIONS]
 
 Options:
-  -h, --help          Show this help message
-  -c, --clean         Clean build directories before building
-  -s, --spike         Build only Spike
-  -f, --firmware      Build only firmware
-  -t, --top           Build only top wrapper
-  -r, --run-tests     Build top wrapper (if needed) and run tests
-  --all               Build everything and run tests
-  --mailbox-firmware  Build only mailbox firmware
-  --spike-mailbox     Build only spike mailbox wrapper
-  --run-mailbox       test mailbox
-  --riscv PATH        Set RISC-V toolchain path (default: /opt/riscv)
-  --spike-src PATH    Set Spike source path (default: ./riscv-isa-sim)
+  -h, --help              Show this help message
+  -c, --clean             Clean build directories before building
+  -s, --spike             Build only Spike
+  -f, --firmware [TYPE]   Build firmware (TYPE: insn|mailbox|all, default: all)
+  -t, --top [TYPE]        Build top wrappers (TYPE: insn|mailbox|all, default: all)
+  -r, --run-tests [TYPE]  Build and run tests (TYPE: insn|mailbox|all, default: all)
+  --all                   Build everything and run tests
+  --riscv PATH            Set RISC-V toolchain path (default: /opt/riscv)
+  --spike-src PATH        Set Spike source path (default: ./riscv-isa-sim)
 
 Environment variables:
   RISCV_TOOLCHAIN     Path to RISC-V toolchain
@@ -357,7 +378,12 @@ Examples:
   $0                      # Build everything
   $0 --clean              # Clean and build everything
   $0 --spike --firmware   # Build only Spike and firmware
-  $0 --run-tests          # Build top wrapper and run tests
+  $0 -t                   # Build all top wrappers (top-main + spike_mailbox)
+  $0 -t insn              # Build only top-main
+  $0 -t mailbox           # Build only spike_mailbox
+  $0 -r                   # Build and run all tests (spike_main + mailbox)
+  $0 -r insn              # Build and run spike_main tests only
+  $0 -r mailbox           # Build and run mailbox tests only
   $0 --all                # Build everything and run tests
 
   # Custom paths
@@ -369,9 +395,8 @@ EOF
 parse_args() {
     local clean_build_flag=0
     local build_spike_flag=0
-    local build_firmware_flag=0
+    local build_firmware_flag="all"
     local build_top_flag=0
-    local build_mailbox_firmware_flag=0
     local build_spike_mailbox_flag=0
     local run_tests_flag=0
     local run_mailbox_tests_flag=0
@@ -395,39 +420,67 @@ parse_args() {
                 shift
                 ;;
             -f|--firmware)
-                build_firmware_flag=1
+                if [[ -z "$2" || "$2" == -* ]]; then
+                    build_firmware_flag="all"
+                else
+                    build_firmware_flag="$2"
+                    shift
+                fi
                 shift
                 ;;
             -t|--top)
+                # Default: build all top wrappers (top-main + spike_mailbox)
                 build_top_flag=1
+                build_spike_mailbox_flag=1
+                # Check for optional type argument (insn|mailbox|all)
+                if [[ -n "$2" && "$2" != -* ]]; then
+                    case "$2" in
+                        insn)
+                            build_spike_mailbox_flag=0
+                            ;;
+                        mailbox)
+                            build_top_flag=0
+                            ;;
+                        all)
+                            # Default behavior - both
+                            ;;
+                    esac
+                    shift
+                fi
                 shift
                 ;;
             -r|--run-tests|--run)
                 build_spike_flag=1
-                build_firmware_flag=1
+                build_firmware_flag="all"
                 build_top_flag=1
+                build_spike_mailbox_flag=1
                 run_tests_flag=1
+                run_mailbox_tests_flag=1
+                # Check for optional type argument (insn|mailbox|all)
+                if [[ -n "$2" && "$2" != -* ]]; then
+                    case "$2" in
+                        insn)
+                            run_mailbox_tests_flag=0
+                            build_spike_mailbox_flag=0
+                            ;;
+                        mailbox)
+                            run_tests_flag=0
+                            ;;
+                        all)
+                            # Default behavior
+                            ;;
+                    esac
+                    shift
+                fi
                 shift
                 ;;
             --all)
                 # Build everything and run tests
                 build_spike_flag=1
-                build_firmware_flag=1
+                build_firmware_flag="all"
                 build_top_flag=1
-                build_mailbox_firmware_flag=1
                 build_spike_mailbox_flag=1
                 run_tests_flag=1
-                shift
-                ;;
-            --mailbox-firmware)
-                build_mailbox_firmware_flag=1
-                shift
-                ;;
-            --spike-mailbox)
-                build_spike_mailbox_flag=1
-                shift
-                ;;
-            --run-mailbox)
                 run_mailbox_tests_flag=1
                 shift
                 ;;
@@ -460,16 +513,22 @@ parse_args() {
         build_spike
     fi
     
-    if [ $build_firmware_flag -eq 1 ]; then
-        build_firmware
-    fi
+    # Build firmware based on type
+    case $build_firmware_flag in
+        all)
+            build_firmware
+            build_mailbox_firmware
+            ;;
+        insn)
+            build_firmware
+            ;;
+        mailbox)
+            build_mailbox_firmware
+            ;;
+    esac
     
     if [ $build_top_flag -eq 1 ]; then
         build_top_wrapper
-    fi
-    
-    if [ $build_mailbox_firmware_flag -eq 1 ]; then
-        build_mailbox_firmware
     fi
     
     if [ $build_spike_mailbox_flag -eq 1 ]; then

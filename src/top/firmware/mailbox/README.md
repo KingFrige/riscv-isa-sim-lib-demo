@@ -38,7 +38,7 @@ make install
 
 - `build/firmware.elf`: ELF executable
 - `build/firmware.bin`: Raw binary
-- `build/firmware.hex`: Verilog hex format (for Spike)
+- `build/mailbox.hex`: Verilog hex format (for Spike)
 - `build/firmware.dump`: Disassembly
 
 ## Memory Map
@@ -104,7 +104,7 @@ make install
 make install
 ```
 
-This will copy `firmware.hex` to the Spike debug_rom directory.
+This will copy `mailbox.hex` to the Spike debug_rom directory.
 
 ### Spike Configuration
 
@@ -154,11 +154,10 @@ Hello from firmware!
 ```
 firmware/
 ├── include/
-│   └── firmware.h          # Header file
+│   └── mailbox.h          # Header file
 ├── src/
 │   ├── main.c             # Main firmware code
-│   ├── mailbox.c          # Mailbox handling
-│   └── functions.c        # Utility functions
+│   └── mailbox.c          # Mailbox handling
 ├── linker/
 │   └── firmware.ld        # Linker script
 ├── build/                 # Build output directory
@@ -170,7 +169,7 @@ firmware/
 
 ### Adding New Commands
 
-1. Add command code to `firmware.h`:
+1. Add command code to `mailbox.h`:
    ```c
    #define MAILBOX_CMD_NEW_COMMAND 0x00000020
    ```
@@ -207,7 +206,6 @@ Edit `linker/firmware.ld` to change:
 
 ### Runtime Issues
 
-- **No output**: Check UART address in `functions.c`
 - **Commands not working**: Verify mailbox address matches Spike configuration
 - **Hang on startup**: Check stack/heap sizes in linker script
 

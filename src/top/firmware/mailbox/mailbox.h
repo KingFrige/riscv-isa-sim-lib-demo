@@ -37,11 +37,9 @@
 #define MAILBOX_ERR_NOT_IMPLEMENTED 0x00000005
 
 // 函数声明
-void firmware_main(void);
 void handle_mailbox_command(void);
 uint32_t read_mailbox_reg(uint32_t offset);
 void write_mailbox_reg(uint32_t offset, uint32_t value);
-void write_mailbox_reg64(uint32_t offset, uint64_t value);
 
 // 命令处理函数
 uint32_t handle_hello_command(void);
@@ -54,7 +52,17 @@ uint32_t handle_softmax_command(uint64_t data_addr, uint32_t data_size, uint64_t
 // 工具函数
 void delay(uint32_t cycles);
 
-// 包含util的printf实现
-#include "../util/printf.h"
+// Mailbox 设备访问函数
+uint32_t mailbox_read_status(void);
+uint32_t mailbox_read_command(void);
+uint64_t mailbox_read_data_addr(void);
+uint32_t mailbox_read_data_size(void);
+uint64_t mailbox_read_vector_config(void);
+void mailbox_write_response(uint32_t value);
+void mailbox_clear_busy(void);
+int mailbox_has_command(void);
+void mailbox_send_response(uint32_t response);
+
+#include "../common/printf.h"
 
 #endif // _FIRMWARE_H

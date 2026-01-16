@@ -67,7 +67,7 @@ LDLIBS = -lriscv -lsoftfloat -ldisasm -lfesvr -ldl -lpthread
 
 # Default target
 all: $(TARGET)
-	cd firmware/insn && $(MAKE) O=$(BUILD_DIR)/firmware
+	$(MAKE) -C firmware/insn BUILD_DIR=$(abspath $(BUILD_DIR)/firmware/insn)
 
 # Include dependencies
 -include $(EXTENSIONS_DEP)
@@ -126,14 +126,11 @@ reconfigure_spike:
 
 # Mailbox firmware build
 MAILBOX_FIRMWARE_DIR = $(ROOT_DIR)/firmware/mailbox
-MAILBOX_FIRMWARE_SRC = $(MAILBOX_FIRMWARE_DIR)/build/firmware.elf
+MAILBOX_FIRMWARE_SRC = $(BUILD_DIR)/firmware/mailbox/firmware.elf
 
 .PHONY: build_mailbox_firmware
 build_mailbox_firmware:
-	cd $(MAILBOX_FIRMWARE_DIR) && \
-	$(MAKE) RISCV_PREFIX="$(RISCV_PATH)/bin/riscv64-unknown-elf-" PROJECT_ROOT="$(ROOT_DIR)" FIRMWARE_DIR="." BUILD_DIR="build" && \
-	mkdir -p $(BUILD_DIR)/firmware/mailbox && \
-	cp build/firmware.elf $(BUILD_DIR)/firmware/mailbox/
+	$(MAKE) -C $(MAILBOX_FIRMWARE_DIR) BUILD_DIR=$(abspath $(BUILD_DIR)/firmware/mailbox) RISCV_PREFIX="$(RISCV_PATH)/bin/riscv64-unknown-elf-"
 
 # Mailbox build (phony target that depends on the actual executable)
 .PHONY: build_mailbox
@@ -146,19 +143,19 @@ run-mailbox: $(MAILBOX_TARGET) $(MAILBOX_FIRMWARE_SRC)
 
 # Test program compilation
 TEST_SW_DIR = $(ROOT_DIR)/firmware/insn
-TEST_ELF = $(BUILD_DIR)/firmware/insn/main.elf
+TEST_ELF = $(BUILD_DIR)/firmware/insn/firmware.elf
 
 .PHONY: build_test
 build_test: $(TARGET)
-	cd $(TEST_SW_DIR) && RISCV_PATH=$(RISCV_PATH) make O=$(BUILD_DIR)/firmware
+	$(MAKE) -C $(TEST_SW_DIR) BUILD_DIR=$(abspath $(BUILD_DIR)/firmware/insn)
 
 # Run with build directory paths
 .PHONY: run-build
 run-build: 
-	$(BUILD_DIR)/top-main --isa=rv64imafdcv_zvl512b_zicsr_xperia_xperiv -l --log=$(BUILD_DIR)/spike.log --log-commits --instructions=80000 $(BUILD_DIR)/firmware/insn/main.elf
+	$(BUILD_DIR)/top-main --isa=rv64gcv_zvl512b_zicsr_xperia_xperiv -l --log=$(BUILD_DIR)/spike.log --log-commits --instructions=80000 $(BUILD_DIR)/firmware/insn/firmware.elf
 
 # Rule to ensure test program is built
-$(TEST_ELF): build_test
+$(BUILD_DIR)/firmware/insn/firmware.elf: build_test
 
 .PHONY: clean_spike
 clean_spike:
@@ -167,7 +164,7 @@ clean_spike:
 
 .PHONY: clean_test
 clean_test:
-	cd $(TEST_SW_DIR) && make clean
+	$(MAKE) -C $(TEST_SW_DIR) BUILD_DIR=$(abspath $(BUILD_DIR)/firmware/insn) clean
 
 .PHONY: clean
 clean: clean_test

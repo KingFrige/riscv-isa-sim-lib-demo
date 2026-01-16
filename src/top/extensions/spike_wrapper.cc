@@ -271,7 +271,7 @@ private:
             cfg_t cfg;
             
             // 设置 ISA
-            cfg.isa = "rv64gc";
+            cfg.isa = "rv64gcv_zvl512b";
             
             // 设置内存布局
             std::vector<mem_cfg_t> mem_layout;
