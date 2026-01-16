@@ -198,10 +198,14 @@ build_mailbox_firmware:
 .PHONY: build_mailbox_test
 build_mailbox_test: build_mailbox_firmware $(MAILBOX_TARGET)
 
-# Run mailbox test
+# Run mailbox test (optional FIRMWARE_ELF to use external firmware)
 .PHONY: run_mailbox_test
-run_mailbox_test: $(MAILBOX_TARGET) $(MAILBOX_FIRMWARE_ELF)
+run_mailbox_test: $(MAILBOX_TARGET)
+ifeq ($(FIRMWARE_ELF),)
 	$(MAILBOX_TARGET) -l --log=$(MAILBOX_BUILD_DIR)/spike.log --log-commits $(MAILBOX_FIRMWARE_ELF)
+else
+	$(MAILBOX_TARGET) -l --log=$(MAILBOX_BUILD_DIR)/spike.log --log-commits $(FIRMWARE_ELF)
+endif
 
 # Clean mailbox build
 .PHONY: clean_mailbox_test

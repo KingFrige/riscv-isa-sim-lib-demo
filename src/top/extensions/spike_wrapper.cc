@@ -52,18 +52,9 @@ public:
         }
         
         try {
-            // 准备 Spike 参数
-            std::vector<std::string> spike_args = {
-                "--isa=rv64gc",
-                "-m0x80000000:0x10000"  // 128KB 内存
-            };
-            
-            // 添加用户参数
-            spike_args.insert(spike_args.end(), args.begin(), args.end());
-            
             if (debug_) {
                 std::cout << "[SpikeWrapper] Starting Spike with args: ";
-                for (const auto& arg : spike_args) {
+                for (const auto& arg : args) {
                     std::cout << arg << " ";
                 }
                 std::cout << std::endl;
@@ -71,7 +62,7 @@ public:
             
             // 创建 Spike 实例
             // 注意：这里简化了 Spike 的初始化，实际实现需要更复杂的配置
-            sim_ = create_spike_instance(spike_args);
+            sim_ = create_spike_instance(args);
             
             // 简化实现：即使没有真正的 Spike 实例也继续
             // 在实际实现中，这里需要真正的 Spike 实例
@@ -271,7 +262,8 @@ private:
             cfg_t cfg;
             
             // 设置 ISA
-            cfg.isa = "rv64gcv_zvl512b";
+            cfg.isa = "rv64gcv_zvl512b_zicsr_xperia_xperiv";
+            fprintf(stderr, "[DEBUG] ISA string: '%s'\n", cfg.isa);
             
             // 设置内存布局
             std::vector<mem_cfg_t> mem_layout;

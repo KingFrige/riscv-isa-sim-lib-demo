@@ -320,6 +320,87 @@ build_mailbox_firmware() {
     cd "$PROJECT_ROOT"
     log_success "Mailbox firmware built successfully"
 }
+# Build fuse firmware
+build_fuse_firmware() {
+    log_info "Building fuse firmware..."
+    
+    # Create build directory
+    mkdir -p "$BUILD_DIR/firmware/fuse"
+    
+    # Set required environment variable
+    export RISCV_PATH="$RISCV_TOOLCHAIN"
+    
+    # Change to fuse firmware directory and build
+    cd "$PROJECT_ROOT/src/top/firmware/fuse"
+    
+    # Set RISCV_PREFIX for the toolchain
+    export RISCV_PREFIX="$RISCV_TOOLCHAIN/bin/riscv64-unknown-elf-"
+    
+    # Build the fuse firmware
+    make RISCV_PREFIX="$RISCV_PREFIX" BUILD_DIR="$BUILD_DIR/firmware/fuse" all
+    
+    # Verify firmware was built
+    if [ -f "$BUILD_DIR/firmware/fuse/firmware.elf" ]; then
+        log_success "Fuse firmware built to $BUILD_DIR/firmware/fuse/firmware.elf"
+    else
+        log_error "Fuse firmware not found"
+        return 1
+    fi
+    
+    # Return to project root
+    cd "$PROJECT_ROOT"
+    log_success "Fuse firmware built successfully"
+}
+
+# Run fuse tests
+run_fuse_tests() {
+    log_info "Running fuse tests..."
+
+    # Set environment variables
+    export SPIKE_INSTALL_DIR="$PROJECT_ROOT/riscv-isa-sim/install"
+    export SPIKE_SOURCE_DIR="$SPIKE_SRC_DIR"
+    export RISCV_PATH="$RISCV_TOOLCHAIN"
+
+    # Run fuse test using the mailbox test wrapper with fuse firmware
+    cd "$PROJECT_ROOT/src/top"
+    make run_mailbox_test BUILD_DIR="$BUILD_DIR" FIRMWARE_ELF="$BUILD_DIR/firmware/fuse/firmware.elf"
+    cd "$PROJECT_ROOT"
+    log_success "Fuse tests completed"
+}
+
+# Run fuse debug - directly execute fuse ELF for debugging
+run_fuse_debug() {
+    log_info "Running fuse debug..."
+
+    # Set environment variables
+    export SPIKE_INSTALL_DIR="$PROJECT_ROOT/riscv-isa-sim/install"
+    export SPIKE_SOURCE_DIR="$SPIKE_SRC_DIR"
+    export RISCV_PATH="$RISCV_TOOLCHAIN"
+    export LD_LIBRARY_PATH="$SPIKE_INSTALL_DIR/lib:$LD_LIBRARY_PATH"
+
+    local FIRMWARE_ELF="$BUILD_DIR/firmware/fuse/firmware.elf"
+    local SPIKE_MAILBOX="$BUILD_DIR/mailbox/spike_mailbox"
+    local LOG_FILE="$BUILD_DIR/mailbox/fuse.log"
+
+    # Verify files exist
+    if [ ! -f "$SPIKE_MAILBOX" ]; then
+        log_error "spike_mailbox not found at $SPIKE_MAILBOX"
+        log_error "Please build mailbox wrapper first: bash build_all.sh -t mailbox"
+        return 1
+    fi
+
+    if [ ! -f "$FIRMWARE_ELF" ]; then
+        log_error "fuse firmware not found at $FIRMWARE_ELF"
+        log_error "Please build fuse firmware first: bash build_all.sh -f fuse"
+        return 1
+    fi
+
+    log_info "Executing: $SPIKE_MAILBOX -l --log=$LOG_FILE --log-commits $FIRMWARE_ELF"
+    $SPIKE_MAILBOX -l --log="$LOG_FILE" --log-commits "$FIRMWARE_ELF"
+    
+    log_success "Fuse debug completed. Log saved to $LOG_FILE"
+}
+
 
 # Build mailbox test wrapper
 build_mailbox_test() {
@@ -360,6 +441,7 @@ Options:
   -f, --firmware [TYPE]   Build firmware (TYPE: insn|mailbox|all, default: all)
   -t, --top [TYPE]        Build top wrappers (TYPE: insn|mailbox|all, default: all)
   -r, --run-tests [TYPE]  Build and run tests (TYPE: insn|mailbox|all, default: all)
+  -d, --debug-fuse        Run fuse debug directly (skip all builds)
   --all                   Build everything and run tests
   --riscv PATH            Set RISC-V toolchain path (default: /opt/riscv)
   --spike-src PATH        Set Spike source path (default: ./riscv-isa-sim)
@@ -397,6 +479,8 @@ parse_args() {
     local build_mailbox_test_flag=0
     local run_insn_tests_flag=0
     local run_mailbox_tests_flag=0
+    local run_fuse_tests_flag=0
+    local run_fuse_debug_flag=0
 
     if [ $# -lt 1 ]; then
         show_help
@@ -450,6 +534,7 @@ parse_args() {
                 build_mailbox_test_flag=1
                 run_insn_tests_flag=1
                 run_mailbox_tests_flag=1
+                run_fuse_tests_flag=1
                 # Check for optional type argument (insn|mailbox|all)
                 if [[ -n "$2" && "$2" != -* ]]; then
                     case "$2" in
@@ -468,6 +553,19 @@ parse_args() {
                 fi
                 shift
                 ;;
+            -d|--debug-fuse)
+                # Standalone debug mode - only run fuse debug, skip all builds
+                run_fuse_debug_flag=1
+                # Disable all build flags for pure debug mode
+                build_spike_flag=0
+                build_firmware_flag=""
+                build_top_flag=0
+                build_mailbox_test_flag=0
+                run_insn_tests_flag=0
+                run_mailbox_tests_flag=0
+                run_fuse_tests_flag=0
+                shift
+                ;;
             --all)
                 # Build everything and run tests
                 build_spike_flag=1
@@ -476,6 +574,8 @@ parse_args() {
                 build_mailbox_test_flag=1
                 run_insn_tests_flag=1
                 run_mailbox_tests_flag=1
+                run_fuse_tests_flag=1
+                run_fuse_debug_flag=0  # Debug mode is separate
                 shift
                 ;;
             --riscv)
@@ -507,12 +607,16 @@ parse_args() {
         all)
             build_firmware
             build_mailbox_firmware
+            build_fuse_firmware
             ;;
         insn)
             build_firmware
             ;;
         mailbox)
             build_mailbox_firmware
+            ;;
+        fuse)
+            build_fuse_firmware
             ;;
     esac
     
@@ -532,6 +636,16 @@ parse_args() {
     # Run tests if requested
     if [ $run_mailbox_tests_flag -eq 1 ]; then
         run_mailbox_tests
+    fi
+
+    # Run fuse tests if requested
+    if [ $run_fuse_tests_flag -eq 1 ]; then
+        run_fuse_tests
+    fi
+
+    # Run fuse debug if requested
+    if [ $run_fuse_debug_flag -eq 1 ]; then
+        run_fuse_debug
     fi
 }
 
