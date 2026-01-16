@@ -128,7 +128,7 @@ build_firmware() {
     log_info "Building firmware..."
     
     # Create build directory
-    mkdir -p "$FIRMWARE_BUILD_DIR"
+    mkdir -p "$BUILD_DIR/insn/firmware"
     
     # Change to top firmware directory and build
     cd "$PROJECT_ROOT/src/top/firmware/insn"
@@ -137,13 +137,13 @@ build_firmware() {
     export RISCV_PATH="$RISCV_TOOLCHAIN"
     
     # Build the firmware - Makefile will output to BUILD_DIR automatically
-    make RISCV_PATH="$RISCV_TOOLCHAIN" BUILD_DIR="$BUILD_DIR/firmware/insn"
+    make RISCV_PATH="$RISCV_TOOLCHAIN" BUILD_DIR="$BUILD_DIR/insn/firmware"
 
     # Verify firmware was built
-    if [ -f "$BUILD_DIR/firmware/insn/firmware.elf" ]; then
-        log_success "Firmware built to $BUILD_DIR/firmware/insn/firmware.elf"
+    if [ -f "$BUILD_DIR/insn/firmware/firmware.elf" ]; then
+        log_success "Firmware built to $BUILD_DIR/insn/firmware/firmware.elf"
     else
-        log_error "Firmware not found at $BUILD_DIR/firmware/insn/firmware.elf"
+        log_error "Firmware not found at $BUILD_DIR/insn/firmware/firmware.elf"
         return 1
     fi
     
@@ -156,6 +156,9 @@ build_firmware() {
 build_mailbox_firmware() {
     log_info "Building mailbox firmware..."
     
+    # Create build directory
+    mkdir -p "$BUILD_DIR/mailbox/firmware"
+    
     # Change to mailbox firmware directory and build
     cd "$PROJECT_ROOT/src/top/firmware/mailbox"
     
@@ -163,13 +166,13 @@ build_mailbox_firmware() {
     export RISCV_PATH="$RISCV_TOOLCHAIN"
     
     # Build the firmware - Makefile will output to BUILD_DIR automatically
-    make RISCV_PATH="$RISCV_TOOLCHAIN" BUILD_DIR="$BUILD_DIR/firmware/mailbox"
+    make RISCV_PATH="$RISCV_TOOLCHAIN" BUILD_DIR="$BUILD_DIR/mailbox/firmware"
 
     # Verify firmware was built
-    if [ -f "$BUILD_DIR/firmware/mailbox/firmware.elf" ]; then
-        log_success "Mailbox firmware built to $BUILD_DIR/firmware/mailbox/firmware.elf"
+    if [ -f "$BUILD_DIR/mailbox/firmware/firmware.elf" ]; then
+        log_success "Mailbox firmware built to $BUILD_DIR/mailbox/firmware/firmware.elf"
     else
-        log_error "Mailbox firmware not found at $BUILD_DIR/firmware/mailbox/firmware.elf"
+        log_error "Mailbox firmware not found at $BUILD_DIR/mailbox/firmware/firmware.elf"
         return 1
     fi
     
@@ -200,7 +203,7 @@ build_top_wrapper() {
     # Check if Spike is already built by checking for required libraries
     if [ ! -f "$PROJECT_ROOT/riscv-isa-sim/install/lib/libriscv.so" ]; then
         log_info "Required Spike libraries not found, building Spike libraries first..."
-        make spike_build BUILD_DIR="$TOP_BUILD_DIR"
+        make build_spike BUILD_DIR="$TOP_BUILD_DIR"
     else
         log_info "Using existing Spike installation at $PROJECT_ROOT/riscv-isa-sim/install"
     fi
@@ -208,21 +211,21 @@ build_top_wrapper() {
     log_info "Building top wrapper executable..."
     make BUILD_DIR="$TOP_BUILD_DIR"
     
-    # Copy the built executable to the project build directory
-    mkdir -p "$BUILD_DIR"
-    if [ -f "$TOP_BUILD_DIR/top-main" ]; then
-        cp "$TOP_BUILD_DIR/top-main" "$BUILD_DIR/"
-        log_success "Top wrapper executable copied to $BUILD_DIR/"
+    # Copy the built executables to the project build directory
+    mkdir -p "$BUILD_DIR/insn" "$BUILD_DIR/mailbox"
+    if [ -f "$TOP_BUILD_DIR/insn/spike_insn" ]; then
+        cp "$TOP_BUILD_DIR/insn/spike_insn" "$BUILD_DIR/insn/"
+        log_success "INSN wrapper executable copied to $BUILD_DIR/insn/"
     else
-        log_error "Top wrapper executable not found"
+        log_error "INSN wrapper executable not found"
         return 1
     fi
     
     # Copy firmware if built
     if [ -f "$TOP_BUILD_DIR/firmware/insn/firmware.elf" ]; then
-        mkdir -p "$BUILD_DIR/firmware"
-        cp "$TOP_BUILD_DIR/firmware/insn/firmware.elf" "$BUILD_DIR/firmware/"
-        log_success "Firmware copied to $BUILD_DIR/firmware/"
+        mkdir -p "$BUILD_DIR/insn/firmware"
+        cp "$TOP_BUILD_DIR/firmware/insn/firmware.elf" "$BUILD_DIR/insn/firmware/"
+        log_success "Firmware copied to $BUILD_DIR/insn/firmware/"
     fi
     
     # Return to project root
@@ -230,9 +233,9 @@ build_top_wrapper() {
     log_success "Top wrapper built successfully"
 }
 
-# Run tests
-run_tests() {
-    log_info "Running tests..."
+# Run insn tests
+run_insn_tests() {
+    log_info "Running insn tests..."
     
     # Set environment variables
     export SPIKE_INSTALL_DIR="$PROJECT_ROOT/riscv-isa-sim/install"
@@ -240,21 +243,21 @@ run_tests() {
     export RISCV_PATH="$RISCV_TOOLCHAIN"
     
     # Ensure the executables we need are in the build directory
-    if [ ! -f "$BUILD_DIR/top-main" ]; then
-        log_error "top-main not found in $BUILD_DIR. Please build the top wrapper first."
+    if [ ! -f "$BUILD_DIR/insn/spike_insn" ]; then
+        log_error "spike_insn not found in $BUILD_DIR/insn/. Please build the top wrapper first."
         return 1
     fi
     
-    if [ ! -f "$BUILD_DIR/firmware/insn/firmware.elf" ]; then
-        log_error "firmware.elf not found in $BUILD_DIR/firmware/insn. Please build the firmware first."
+    if [ ! -f "$BUILD_DIR/insn/firmware/firmware.elf" ]; then
+        log_error "firmware.elf not found in $BUILD_DIR/insn/firmware/. Please build the firmware first."
         return 1
     fi
     
     # Run the test using the Makefile target which ensures consistent execution
-    log_info "Running tests using files from $BUILD_DIR..."
+    log_info "Running insn tests using files from $BUILD_DIR/insn/..."
     cd "$PROJECT_ROOT/src/top"
-    make run-build BUILD_DIR="$PROJECT_ROOT/build"
-    log_success "Tests completed and log saved to $BUILD_DIR/spike.log"
+    make run_insn_test BUILD_DIR="$PROJECT_ROOT/build"
+    log_success "INSN tests completed and log saved to $BUILD_DIR/insn/spike.log"
 }
 
 run_mailbox_tests() {
@@ -267,8 +270,7 @@ run_mailbox_tests() {
 
     # Run mailbox test using Makefile
     cd "$PROJECT_ROOT/src/top"
-    make run-mailbox BUILD_DIR="$BUILD_DIR"
-
+    	make run_mailbox_test BUILD_DIR="$BUILD_DIR"
     cd "$PROJECT_ROOT"
     log_success "Mailbox tests completed"
 }
@@ -277,15 +279,11 @@ run_mailbox_tests() {
 clean_build() {
     log_info "Cleaning build directories..."
     
-    if [ -d "$BUILD_DIR" ]; then
-        rm -rf "$BUILD_DIR"
-        log_success "Build directory cleaned"
-    fi
+    rm -rf "$BUILD_DIR"
+    log_success "Build directory cleaned"
     
-    if [ -d "$INSTALL_DIR" ]; then
-        rm -rf "$INSTALL_DIR"
-        log_success "Install directory cleaned"
-    fi
+    rm -rf "$PROJECT_ROOT/src/top/build"
+    log_success "src/top/build directory cleaned"
 }
 
 
@@ -323,24 +321,24 @@ build_mailbox_firmware() {
     log_success "Mailbox firmware built successfully"
 }
 
-# Build spike_mailbox wrapper
-build_spike_mailbox() {
-    log_info "Building spike mailbox wrapper using Makefile..."
+# Build mailbox test wrapper
+build_mailbox_test() {
+    log_info "Building mailbox test wrapper using Makefile..."
 
     # Set environment variables for the build
     export SPIKE_INSTALL_DIR="$PROJECT_ROOT/riscv-isa-sim/install"
     export SPIKE_SOURCE_DIR="$SPIKE_SRC_DIR"
     export RISCV_PATH="$RISCV_TOOLCHAIN"
 
-    # Build spike_mailbox using Makefile (includes all extensions)
+    # Build mailbox test using Makefile (includes all extensions)
     cd "$PROJECT_ROOT/src/top"
-    make build_mailbox BUILD_DIR="$BUILD_DIR"
+    make build_mailbox_test BUILD_DIR="$BUILD_DIR"
 
     # Copy the built executable to the project build directory
     if [ -f "$BUILD_DIR/mailbox/spike_mailbox" ]; then
-        log_success "Spike mailbox wrapper built successfully"
+        log_success "Mailbox test wrapper built successfully"
     else
-        log_error "Spike mailbox wrapper executable not found"
+        log_error "Mailbox test wrapper executable not found"
         return 1
     fi
 
@@ -378,11 +376,11 @@ Examples:
   $0                      # Build everything
   $0 --clean              # Clean and build everything
   $0 --spike --firmware   # Build only Spike and firmware
-  $0 -t                   # Build all top wrappers (top-main + spike_mailbox)
-  $0 -t insn              # Build only top-main
+  $0 -t                   # Build all top wrappers (spike_insn + spike_mailbox)
+  $0 -t insn              # Build only spike_insn
   $0 -t mailbox           # Build only spike_mailbox
-  $0 -r                   # Build and run all tests (spike_main + mailbox)
-  $0 -r insn              # Build and run spike_main tests only
+  $0 -r                   # Build and run all tests (spike_insn + mailbox)
+  $0 -r insn              # Build and run spike_insn tests only
   $0 -r mailbox           # Build and run mailbox tests only
   $0 --all                # Build everything and run tests
 
@@ -393,16 +391,16 @@ EOF
 
 # Parse command line arguments
 parse_args() {
-    local clean_build_flag=0
     local build_spike_flag=0
     local build_firmware_flag="all"
     local build_top_flag=0
-    local build_spike_mailbox_flag=0
-    local run_tests_flag=0
+    local build_mailbox_test_flag=0
+    local run_insn_tests_flag=0
     local run_mailbox_tests_flag=0
 
     if [ $# -lt 1 ]; then
-        run_tests_flag=1
+        show_help
+        exit 0
     fi
     
     while [[ $# -gt 0 ]]; do
@@ -410,10 +408,6 @@ parse_args() {
             -h|--help)
                 show_help
                 exit 0
-                ;;
-            -c|--clean)
-                clean_build_flag=1
-                shift
                 ;;
             -s|--spike)
                 build_spike_flag=1
@@ -429,14 +423,14 @@ parse_args() {
                 shift
                 ;;
             -t|--top)
-                # Default: build all top wrappers (top-main + spike_mailbox)
+                # Default: build all top wrappers (spike_insn + spike_mailbox)
                 build_top_flag=1
-                build_spike_mailbox_flag=1
+                build_mailbox_test_flag=1
                 # Check for optional type argument (insn|mailbox|all)
                 if [[ -n "$2" && "$2" != -* ]]; then
                     case "$2" in
                         insn)
-                            build_spike_mailbox_flag=0
+                            build_mailbox_test_flag=0
                             ;;
                         mailbox)
                             build_top_flag=0
@@ -453,18 +447,18 @@ parse_args() {
                 build_spike_flag=1
                 build_firmware_flag="all"
                 build_top_flag=1
-                build_spike_mailbox_flag=1
-                run_tests_flag=1
+                build_mailbox_test_flag=1
+                run_insn_tests_flag=1
                 run_mailbox_tests_flag=1
                 # Check for optional type argument (insn|mailbox|all)
                 if [[ -n "$2" && "$2" != -* ]]; then
                     case "$2" in
                         insn)
                             run_mailbox_tests_flag=0
-                            build_spike_mailbox_flag=0
+                            build_mailbox_test_flag=0
                             ;;
                         mailbox)
-                            run_tests_flag=0
+                            run_insn_tests_flag=0
                             ;;
                         all)
                             # Default behavior
@@ -479,8 +473,8 @@ parse_args() {
                 build_spike_flag=1
                 build_firmware_flag="all"
                 build_top_flag=1
-                build_spike_mailbox_flag=1
-                run_tests_flag=1
+                build_mailbox_test_flag=1
+                run_insn_tests_flag=1
                 run_mailbox_tests_flag=1
                 shift
                 ;;
@@ -499,11 +493,6 @@ parse_args() {
                 ;;
         esac
     done
-    
-    # Apply clean if requested
-    if [ $clean_build_flag -eq 1 ]; then
-        clean_build
-    fi
     
     # Create directories
     mkdir -p "$BUILD_DIR" "$INSTALL_DIR"
@@ -531,13 +520,13 @@ parse_args() {
         build_top_wrapper
     fi
     
-    if [ $build_spike_mailbox_flag -eq 1 ]; then
-        build_spike_mailbox
+    if [ $build_mailbox_test_flag -eq 1 ]; then
+        build_mailbox_test
     fi
     
     # Run tests if requested
-    if [ $run_tests_flag -eq 1 ]; then
-        run_tests
+    if [ $run_insn_tests_flag -eq 1 ]; then
+        run_insn_tests
     fi
 
     # Run tests if requested
@@ -568,4 +557,8 @@ main() {
 }
 
 # Run main function
+if [ "$1" = "-c" ] || [ "$1" = "--clean" ]; then
+    clean_build
+    exit 0
+fi
 main "$@"

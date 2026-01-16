@@ -31,3 +31,6 @@
 
 ## TODO
 
+- [ ] 重构src/top下的makefile与对应的build_all.sh,要求如下：
+       - 统一命名规则，比如spike_build, 修正为build_spike, 动词_名词
+       - 目标清晰化，mailbox & insn两个目标注意更新名字区分

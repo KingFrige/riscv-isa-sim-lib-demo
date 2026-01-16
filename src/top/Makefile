@@ -1,14 +1,22 @@
 # Static Spike Integration Makefile
-# Builds a statically linked Spike executable with custom extensions
+# Builds statically linked Spike executables with custom extensions
 
 # Root directory of this project
 ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 PROJECT_ROOT := $(realpath $(ROOT_DIR)/../..)
 
+# =============================================================================
+# Directory Configuration (Consistent structure: <type>/)
+# =============================================================================
+
+# Build output directories (unified: insn/ and mailbox/)
+BUILD_DIR ?= $(ROOT_DIR)/build
+INSN_BUILD_DIR = $(BUILD_DIR)/insn
+MAILBOX_BUILD_DIR = $(BUILD_DIR)/mailbox
+
 # Spike directories
 SPIKE_SOURCE_DIR ?= $(PROJECT_ROOT)/riscv-isa-sim
 SPIKE_DIR = $(patsubst %/,%,$(SPIKE_SOURCE_DIR))
-BUILD_DIR = $(ROOT_DIR)/build
 SPIKE_BUILD_DIR = $(SPIKE_DIR)/build
 SPIKE_INSTALL_DIR = $(SPIKE_DIR)/install
 SPIKE_INC_DIR = $(SPIKE_INSTALL_DIR)/include
@@ -30,23 +38,31 @@ EXTENSIONS_DEP = $(EXTENSIONS_OBJ:.o=.d)
 # RISC-V toolchain path (can be overridden)
 RISCV_PATH ?= /home/korben/tools/riscv/master-v20251230
 
-# Source files for our custom spike
-CUSTOM_SPIKE_SRC = $(ROOT_DIR)/spike_main.cc
-CUSTOM_SPIKE_OBJ = $(BUILD_DIR)/spike_main.o
-CUSTOM_SPIKE_DEP = $(CUSTOM_SPIKE_OBJ:.o=.d)
+# =============================================================================
+# Source Files for Each Target
+# =============================================================================
 
-# Source files for spike_mailbox
+# Source files for spike_insn (INSN test)
+SPIKE_INSN_SRC = $(ROOT_DIR)/spike_insn.cc
+SPIKE_INSN_OBJ = $(BUILD_DIR)/spike_insn.o
+SPIKE_INSN_DEP = $(SPIKE_INSN_OBJ:.o=.d)
+
+# Source files for spike_mailbox (MAILBOX test)
 SPIKE_MAILBOX_SRC = $(ROOT_DIR)/spike_mailbox.cc
 SPIKE_MAILBOX_OBJ = $(BUILD_DIR)/spike_mailbox.o
 SPIKE_MAILBOX_DEP = $(SPIKE_MAILBOX_OBJ:.o=.d)
 
-# Target executable
-TARGET = $(BUILD_DIR)/top-main
+# =============================================================================
+# Target Executables (Consistent: <type>/<name>)
+# =============================================================================
 
-# Mailbox target executable
-MAILBOX_TARGET = $(BUILD_DIR)/mailbox/spike_mailbox
+INSN_TARGET = $(INSN_BUILD_DIR)/spike_insn
+MAILBOX_TARGET = $(MAILBOX_BUILD_DIR)/spike_mailbox
 
-# Compiler flags
+# =============================================================================
+# Compiler Configuration
+# =============================================================================
+
 CXX ?= g++
 CXXFLAGS = -std=c++17 -fPIC -O2 -Wall -MMD -MP -D_GNU_SOURCE
 INCLUDES = \
@@ -61,48 +77,44 @@ INCLUDES = \
 	-I$(EXTENSIONS_DIR) \
 	-I$(CUSTOM_RISCV_DIR)
 
-# Linker flags
 LDFLAGS = -Wl,-rpath,$(SPIKE_LIB_DIR) -Wl,--no-as-needed
 LDLIBS = -lriscv -lsoftfloat -ldisasm -lfesvr -ldl -lpthread
 
-# Default target
-all: $(TARGET)
-	$(MAKE) -C firmware/insn BUILD_DIR=$(abspath $(BUILD_DIR)/firmware/insn)
+# =============================================================================
+# Default Target
+# =============================================================================
+
+all: build_insn_test
 
 # Include dependencies
 -include $(EXTENSIONS_DEP)
--include $(CUSTOM_SPIKE_DEP)
+-include $(SPIKE_INSN_DEP)
+-include $(SPIKE_MAILBOX_DEP)
 
-# Build extensions (.cc files)
+# =============================================================================
+# Common Build Rules
+# =============================================================================
+
 $(BUILD_DIR)/extensions/%.o: $(EXTENSIONS_DIR)/%.cc
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-# Build extensions (.cpp files)
 $(BUILD_DIR)/extensions/%.o: $(EXTENSIONS_DIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-# Build custom RISC-V extensions (.cpp files)
 $(BUILD_DIR)/custom/riscv/%.o: $(CUSTOM_RISCV_DIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-# Build custom spike main
 $(BUILD_DIR)/%.o: $(ROOT_DIR)/%.cc
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-# Link everything together
-$(TARGET): $(EXTENSIONS_OBJ) $(CUSTOM_SPIKE_OBJ)
-	$(CXX) $(LDFLAGS) -L$(SPIKE_LIB_DIR) -o $@ $^ $(LDLIBS)
+# =============================================================================
+# Spike Library Targets (verb_noun naming)
+# =============================================================================
 
-# Build spike_mailbox (includes all extensions for AI指令 support)
-$(MAILBOX_TARGET): $(EXTENSIONS_OBJ) $(SPIKE_MAILBOX_OBJ)
-	@mkdir -p $(dir $@)
-	$(CXX) $(LDFLAGS) -L$(SPIKE_LIB_DIR) -o $@ $^ $(LDLIBS)
-
-# Spike build targets
 $(SPIKE_CONFIGURE_STAMP):
 	@if [ ! -f "$(SPIKE_BUILD_DIR)/config.status" ]; then \
 		mkdir -p $(SPIKE_BUILD_DIR) && \
@@ -114,8 +126,8 @@ $(SPIKE_CONFIGURE_STAMP):
 	fi
 	touch $(SPIKE_CONFIGURE_STAMP)
 
-.PHONY: spike_build
-spike_build: $(SPIKE_CONFIGURE_STAMP)
+.PHONY: build_spike
+build_spike: $(SPIKE_CONFIGURE_STAMP)
 	$(MAKE) -C $(SPIKE_BUILD_DIR)
 	$(MAKE) -C $(SPIKE_BUILD_DIR) install
 
@@ -124,68 +136,139 @@ reconfigure_spike:
 	$(MAKE) clean_spike
 	$(MAKE) $(SPIKE_CONFIGURE_STAMP)
 
-# Mailbox firmware build
-MAILBOX_FIRMWARE_DIR = $(ROOT_DIR)/firmware/mailbox
-MAILBOX_FIRMWARE_SRC = $(BUILD_DIR)/firmware/mailbox/firmware.elf
-
-.PHONY: build_mailbox_firmware
-build_mailbox_firmware:
-	$(MAKE) -C $(MAILBOX_FIRMWARE_DIR) BUILD_DIR=$(abspath $(BUILD_DIR)/firmware/mailbox) RISCV_PREFIX="$(RISCV_PATH)/bin/riscv64-unknown-elf-"
-
-# Mailbox build (phony target that depends on the actual executable)
-.PHONY: build_mailbox
-build_mailbox: $(MAILBOX_TARGET)
-
-# Mailbox test run
-.PHONY: run-mailbox
-run-mailbox: $(MAILBOX_TARGET) $(MAILBOX_FIRMWARE_SRC)
-	$(MAILBOX_TARGET) -l --log=$(BUILD_DIR)/mailbox/spike.log --log-commits $(MAILBOX_FIRMWARE_SRC)
-
-# Test program compilation
-TEST_SW_DIR = $(ROOT_DIR)/firmware/insn
-TEST_ELF = $(BUILD_DIR)/firmware/insn/firmware.elf
-
-.PHONY: build_test
-build_test: $(TARGET)
-	$(MAKE) -C $(TEST_SW_DIR) BUILD_DIR=$(abspath $(BUILD_DIR)/firmware/insn)
-
-# Run with build directory paths
-.PHONY: run-build
-run-build: 
-	$(BUILD_DIR)/top-main --isa=rv64gcv_zvl512b_zicsr_xperia_xperiv -l --log=$(BUILD_DIR)/spike.log --log-commits --instructions=80000 $(BUILD_DIR)/firmware/insn/firmware.elf
-
-# Rule to ensure test program is built
-$(BUILD_DIR)/firmware/insn/firmware.elf: build_test
-
 .PHONY: clean_spike
 clean_spike:
 	$(RM) -r $(SPIKE_BUILD_DIR) $(SPIKE_INSTALL_DIR)
 	$(RM) $(SPIKE_CONFIGURE_STAMP)
 
-.PHONY: clean_test
-clean_test:
-	$(MAKE) -C $(TEST_SW_DIR) BUILD_DIR=$(abspath $(BUILD_DIR)/firmware/insn) clean
+# =============================================================================
+# INSN Test Targets (insn_ prefix, outputs to build/insn/)
+# =============================================================================
+
+INSN_FIRMWARE_DIR = $(ROOT_DIR)/firmware/insn
+INSN_FIRMWARE_ELF = $(INSN_BUILD_DIR)/firmware/firmware.elf
+
+# Link spike_insn
+$(INSN_TARGET): $(EXTENSIONS_OBJ) $(SPIKE_INSN_OBJ)
+	@mkdir -p $(dir $@)
+	$(CXX) $(LDFLAGS) -L$(SPIKE_LIB_DIR) -o $@ $^ $(LDLIBS)
+
+# Build insn firmware
+.PHONY: build_insn_firmware
+build_insn_firmware:
+	$(MAKE) -C $(INSN_FIRMWARE_DIR) BUILD_DIR=$(abspath $(INSN_BUILD_DIR)/firmware)
+
+# Build insn test (wrapper + firmware)
+.PHONY: build_insn_test
+build_insn_test: build_insn_firmware $(INSN_TARGET)
+
+# Run insn test
+.PHONY: run_insn_test
+run_insn_test: $(INSN_TARGET) $(INSN_FIRMWARE_ELF)
+	$(INSN_TARGET) --isa=rv64gcv_zvl512b_zicsr_xperia_xperiv \
+		-l --log=$(BUILD_DIR)/insn/spike.log --log-commits \
+		--instructions=80000 $(INSN_FIRMWARE_ELF)
+
+# Clean insn build
+.PHONY: clean_insn_test
+clean_insn_test:
+	$(MAKE) -C $(INSN_FIRMWARE_DIR) BUILD_DIR=$(abspath $(INSN_BUILD_DIR)/firmware) clean
+	$(RM) $(SPIKE_INSN_OBJ) $(SPIKE_INSN_DEP) $(INSN_TARGET)
+	$(RM) -rf $(INSN_BUILD_DIR)
+
+# =============================================================================
+# MAILBOX Test Targets (mailbox_ prefix, outputs to build/mailbox/)
+# =============================================================================
+
+MAILBOX_FIRMWARE_DIR = $(ROOT_DIR)/firmware/mailbox
+MAILBOX_FIRMWARE_ELF = $(MAILBOX_BUILD_DIR)/firmware/firmware.elf
+
+# Link spike_mailbox
+$(MAILBOX_TARGET): $(EXTENSIONS_OBJ) $(SPIKE_MAILBOX_OBJ)
+	@mkdir -p $(dir $@)
+	$(CXX) $(LDFLAGS) -L$(SPIKE_LIB_DIR) -o $@ $^ $(LDLIBS)
+
+# Build mailbox firmware
+.PHONY: build_mailbox_firmware
+build_mailbox_firmware:
+	$(MAKE) -C $(MAILBOX_FIRMWARE_DIR) BUILD_DIR=$(abspath $(MAILBOX_BUILD_DIR)/firmware) \
+		RISCV_PREFIX="$(RISCV_PATH)/bin/riscv64-unknown-elf-"
+
+# Build mailbox test (wrapper + firmware)
+.PHONY: build_mailbox_test
+build_mailbox_test: build_mailbox_firmware $(MAILBOX_TARGET)
+
+# Run mailbox test
+.PHONY: run_mailbox_test
+run_mailbox_test: $(MAILBOX_TARGET) $(MAILBOX_FIRMWARE_ELF)
+	$(MAILBOX_TARGET) -l --log=$(MAILBOX_BUILD_DIR)/spike.log --log-commits $(MAILBOX_FIRMWARE_ELF)
+
+# Clean mailbox build
+.PHONY: clean_mailbox_test
+clean_mailbox_test:
+	$(MAKE) -C $(MAILBOX_FIRMWARE_DIR) BUILD_DIR=$(abspath $(MAILBOX_BUILD_DIR)/firmware) clean
+	$(RM) $(SPIKE_MAILBOX_OBJ) $(SPIKE_MAILBOX_DEP) $(MAILBOX_TARGET)
+	$(RM) -rf $(MAILBOX_BUILD_DIR)
+
+# =============================================================================
+# Unified Build Targets
+# =============================================================================
+
+# Build all test wrappers and firmwares
+.PHONY: build_all_tests
+build_all_tests: build_insn_test build_mailbox_test
+
+# Run all tests
+.PHONY: run_all_tests
+run_all_tests: run_insn_test run_mailbox_test
+
+# Clean all test builds
+.PHONY: clean_all_tests
+clean_all_tests: clean_insn_test clean_mailbox_test
+
+# =============================================================================
+# Clean Targets
+# =============================================================================
 
 .PHONY: clean
-clean: clean_test
-	$(RM) $(EXTENSIONS_OBJ) $(EXTENSIONS_DEP) $(CUSTOM_SPIKE_OBJ) $(CUSTOM_SPIKE_DEP) \
-	      $(SPIKE_MAILBOX_OBJ) $(SPIKE_MAILBOX_DEP) $(TARGET) $(MAILBOX_TARGET) spike.log
-	$(RM) -rf $(BUILD_DIR)/mailbox
+clean: clean_insn_test clean_mailbox_test
+	@rm -rf ./build
 
 .PHONY: distclean
 distclean: clean clean_spike
 
+# =============================================================================
+# Help Target
+# =============================================================================
+
 .PHONY: help
 help:
 	@echo "Available targets:"
-	@echo "  all                - Build static spike with extensions (default)"
-	@echo "  spike_build        - Build and install spike libraries"
-	@echo "  build_mailbox      - Build spike_mailbox executable with all extensions"
-	@echo "  build_mailbox_firmware - Build mailbox firmware"
-	@echo "  run                - Run spike test with top-main"
-	@echo "  run-mailbox        - Run mailbox test"
-	@echo "  run-build          - Run test using build directory files"
-	@echo "  clean              - Remove built objects and executables"
-	@echo "  clean_spike        - Remove spike build and installation"
-	@echo "  distclean          - Clean everything"
+	@echo ""
+	@echo "=== Spike Library ==="
+	@echo "  build_spike        - Build and install spike libraries"
 	@echo "  reconfigure_spike  - Reconfigure spike build"
+	@echo "  clean_spike        - Remove spike build and installation"
+	@echo ""
+	@echo "=== INSN Test (insn_*, outputs: build/insn/) ==="
+	@echo "  build_insn_firmware - Build insn firmware"
+	@echo "  build_insn_test    - Build insn wrapper and firmware"
+	@echo "  run_insn_test      - Run insn test"
+	@echo "  clean_insn_test    - Clean insn build"
+	@echo ""
+	@echo "=== MAILBOX Test (mailbox_*, outputs: build/mailbox/) ==="
+	@echo "  build_mailbox_firmware - Build mailbox firmware"
+	@echo "  build_mailbox_test     - Build mailbox wrapper and firmware"
+	@echo "  run_mailbox_test       - Run mailbox test"
+	@echo "  clean_mailbox_test     - Clean mailbox build"
+	@echo ""
+	@echo "=== Unified Targets ==="
+	@echo "  build_all_tests    - Build all test wrappers and firmwares"
+	@echo "  run_all_tests      - Run all tests"
+	@echo "  clean_all_tests    - Clean all test builds"
+	@echo ""
+	@echo "=== Utility ==="
+	@echo "  all                - Build insn test (default)"
+	@echo "  clean              - Remove all test builds"
+	@echo "  distclean          - Clean everything"
+	@echo "  help               - Show this help message"

@@ -94,7 +94,7 @@
 │   │   │       ├── src/     # 源代码
 │   │   │       ├── Makefile # 构建配置
 │   │   │       └── README.md # 说明文档
-│   │   ├── spike_main.cc   # 自定义 Spike 主程序
+│   │   ├── spike_insn.cc   # 自定义 Spike 主程序
 │   │   ├── spike_mailbox.cc # Mailbox 测试主程序
 │   ├── spike_mailbox.README.md # Mailbox 功能说明
 │   │   └── Makefile        # 静态链接构建配置
