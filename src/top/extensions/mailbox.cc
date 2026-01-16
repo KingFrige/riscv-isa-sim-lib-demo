@@ -9,10 +9,11 @@ mailbox_t::mailbox_t(const simif_t* sim, reg_t base_address)
       base_address_(base_address),
       status_reg(MAILBOX_READY),  // 初始状态为就绪
       command_reg(0),
-      data_addr_reg(0),
-      data_size_reg(0),
       response_reg(MAILBOX_SUCCESS),
-      vector_config_reg(0),
+      data0_reg(0),
+      data1_reg(0),
+      data2_reg(0),
+      data3_reg(0),
       command_handler(nullptr),
       command_callback_(nullptr),
       error_callback_(nullptr),
@@ -55,25 +56,6 @@ bool mailbox_t::load(reg_t addr, size_t len, uint8_t* bytes)
             }
             break;
             
-        case MAILBOX_DATA_ADDR_OFFSET:
-            if (len == 8) {
-                memcpy(bytes, &data_addr_reg, 8);
-                return true;
-            } else if (len == 4) {
-                // 读取低32位
-                uint32_t low = static_cast<uint32_t>(data_addr_reg);
-                memcpy(bytes, &low, 4);
-                return true;
-            }
-            break;
-            
-        case MAILBOX_DATA_SIZE_OFFSET:
-            if (len == 4) {
-                memcpy(bytes, &data_size_reg, 4);
-                return true;
-            }
-            break;
-            
         case MAILBOX_RESPONSE_OFFSET:
             if (len == 4) {
                 memcpy(bytes, &response_reg, 4);
@@ -81,13 +63,46 @@ bool mailbox_t::load(reg_t addr, size_t len, uint8_t* bytes)
             }
             break;
             
-        case MAILBOX_VECTOR_CONFIG_OFFSET:
+        case MAILBOX_DATA0_OFFSET:
             if (len == 8) {
-                memcpy(bytes, &vector_config_reg, 8);
+                memcpy(bytes, &data0_reg, 8);
                 return true;
             } else if (len == 4) {
                 // 读取低32位
-                uint32_t low = static_cast<uint32_t>(vector_config_reg);
+                uint32_t low = static_cast<uint32_t>(data0_reg);
+                memcpy(bytes, &low, 4);
+                return true;
+            }
+            break;
+            
+        case MAILBOX_DATA1_OFFSET:
+            if (len == 8) {
+                memcpy(bytes, &data1_reg, 8);
+                return true;
+            } else if (len == 4) {
+                uint32_t low = static_cast<uint32_t>(data1_reg);
+                memcpy(bytes, &low, 4);
+                return true;
+            }
+            break;
+            
+        case MAILBOX_DATA2_OFFSET:
+            if (len == 8) {
+                memcpy(bytes, &data2_reg, 8);
+                return true;
+            } else if (len == 4) {
+                uint32_t low = static_cast<uint32_t>(data2_reg);
+                memcpy(bytes, &low, 4);
+                return true;
+            }
+            break;
+            
+        case MAILBOX_DATA3_OFFSET:
+            if (len == 8) {
+                memcpy(bytes, &data3_reg, 8);
+                return true;
+            } else if (len == 4) {
+                uint32_t low = static_cast<uint32_t>(data3_reg);
                 memcpy(bytes, &low, 4);
                 return true;
             }
@@ -129,12 +144,7 @@ bool mailbox_t::store(reg_t addr, size_t len, const uint8_t* bytes)
                     status_reg &= ~MAILBOX_ERROR;
                     
                     // 开始处理命令
-                    // 注意：我们不再检查当前状态，因为主机写入状态寄存器就是触发命令的信号
                     process_command();
-                } else {
-                    // 如果写入0，可能是主机在清除状态
-                    // 但我们不应该直接设置status_reg，因为process_command()已经设置了正确的状态
-                    // 保持当前状态不变
                 }
                 return true;
             }
@@ -147,31 +157,9 @@ bool mailbox_t::store(reg_t addr, size_t len, const uint8_t* bytes)
             }
             break;
             
-        case MAILBOX_DATA_ADDR_OFFSET:
-            if (len == 8) {
-                memcpy(&data_addr_reg, bytes, 8);
-                return true;
-            } else if (len == 4) {
-                // 写入低32位，高32位保持不变
-                uint32_t low;
-                memcpy(&low, bytes, 4);
-                data_addr_reg = (data_addr_reg & 0xFFFFFFFF00000000ULL) | low;
-                return true;
-            }
-            break;
-            
-        case MAILBOX_DATA_SIZE_OFFSET:
-            if (len == 4) {
-                memcpy(&data_size_reg, bytes, 4);
-                return true;
-            }
-            break;
-            
         case MAILBOX_RESPONSE_OFFSET:
             if (len == 4) {
                 // 响应寄存器写入：这通常是固件写入响应的地方
-                // 当固件写入响应寄存器时，它表示命令已完成
-                // 因此，我们也应清除BUSY标志并设置READY标志
                 uint32_t new_response;
                 memcpy(&new_response, bytes, 4);
                 response_reg = new_response;
@@ -186,15 +174,51 @@ bool mailbox_t::store(reg_t addr, size_t len, const uint8_t* bytes)
             }
             break;
             
-        case MAILBOX_VECTOR_CONFIG_OFFSET:
+        case MAILBOX_DATA0_OFFSET:
             if (len == 8) {
-                memcpy(&vector_config_reg, bytes, 8);
+                memcpy(&data0_reg, bytes, 8);
                 return true;
             } else if (len == 4) {
                 // 写入低32位，高32位保持不变
                 uint32_t low;
                 memcpy(&low, bytes, 4);
-                vector_config_reg = (vector_config_reg & 0xFFFFFFFF00000000ULL) | low;
+                data0_reg = (data0_reg & 0xFFFFFFFF00000000ULL) | low;
+                return true;
+            }
+            break;
+            
+        case MAILBOX_DATA1_OFFSET:
+            if (len == 8) {
+                memcpy(&data1_reg, bytes, 8);
+                return true;
+            } else if (len == 4) {
+                uint32_t low;
+                memcpy(&low, bytes, 4);
+                data1_reg = (data1_reg & 0xFFFFFFFF00000000ULL) | low;
+                return true;
+            }
+            break;
+            
+        case MAILBOX_DATA2_OFFSET:
+            if (len == 8) {
+                memcpy(&data2_reg, bytes, 8);
+                return true;
+            } else if (len == 4) {
+                uint32_t low;
+                memcpy(&low, bytes, 4);
+                data2_reg = (data2_reg & 0xFFFFFFFF00000000ULL) | low;
+                return true;
+            }
+            break;
+            
+        case MAILBOX_DATA3_OFFSET:
+            if (len == 8) {
+                memcpy(&data3_reg, bytes, 8);
+                return true;
+            } else if (len == 4) {
+                uint32_t low;
+                memcpy(&low, bytes, 4);
+                data3_reg = (data3_reg & 0xFFFFFFFF00000000ULL) | low;
                 return true;
             }
             break;
@@ -211,12 +235,7 @@ void mailbox_t::process_command()
 {
     // 设置忙状态，但不立即处理命令
     // 让固件代码在 Spike 中运行时检测到状态变化并处理命令
-    update_status(false, true, false, vector_config_reg != 0);
-    
-    // 固件将在轮询循环中检测到 BUSY 状态并执行相应命令
-    // 实际的命令处理将在固件代码中完成，而不是在这里模拟
-    // 固件会读取命令寄存器，执行相应的处理函数，然后写入响应寄存器
-    // 并将状态寄存器设置为就绪状态
+    update_status(false, true, false, false);
 }
 
 void mailbox_t::update_status(bool ready, bool busy, bool error, bool vector_mode)
@@ -237,16 +256,12 @@ bool mailbox_t::validate_address(reg_t addr, size_t len) const
 template<typename T>
 T mailbox_t::read_register(reg_t offset) const
 {
-    // 这是一个简单的实现，实际中可能需要根据偏移地址读取不同的寄存器
-    // 这里返回0作为占位符
     return T(0);
 }
 
 template<typename T>
 void mailbox_t::write_register(reg_t offset, T value)
 {
-    // 这是一个简单的实现，实际中可能需要根据偏移地址写入不同的寄存器
-    // 这里不做任何操作作为占位符
     (void)offset;
     (void)value;
 }
@@ -257,13 +272,12 @@ void mailbox_t::on_firmware_command_processed(uint32_t response) {
     response_reg = response;
     
     // 清除忙状态，设置就绪状态
-    update_status(true, false, false, vector_config_reg != 0);
+    update_status(true, false, false, false);
 }
 
 // 发送命令到mailbox（从spike_wrapper.cc迁移过来的函数）
-// 注意：这个函数假设外部代码已经通过某种方式设置了寄存器
-uint32_t mailbox_t::send_command(uint32_t command, uint64_t data_addr,
-                                uint32_t data_size, uint64_t vector_config) {
+uint32_t mailbox_t::send_command(uint32_t command, uint64_t data0,
+                                uint64_t data1, uint64_t data2, uint64_t data3) {
     // 检查mailbox是否就绪
     if (!(status_reg & MAILBOX_READY) || (status_reg & MAILBOX_BUSY)) {
         std::cerr << "[MAILBOX] Mailbox not ready or busy" << std::endl;
@@ -272,21 +286,20 @@ uint32_t mailbox_t::send_command(uint32_t command, uint64_t data_addr,
     
     // 设置命令参数
     command_reg = command;
-    data_addr_reg = data_addr;
-    data_size_reg = data_size;
-    vector_config_reg = vector_config;
+    data0_reg = data0;
+    data1_reg = data1;
+    data2_reg = data2;
+    data3_reg = data3;
     
     // 清除之前的响应
     response_reg = MAILBOX_SUCCESS;
     
     // 设置忙状态，清除就绪状态
-    update_status(false, true, false, vector_config != 0);
+    update_status(false, true, false, false);
     
     // 触发命令处理
     process_command();
     
-    // 在实际的Spike环境中，固件会处理命令并调用on_firmware_command_processed()
-    // 这里我们返回成功，实际响应由固件设置
     return MAILBOX_SUCCESS;
 }
 
@@ -305,7 +318,6 @@ bool mailbox_t::wait_for_ready(uint32_t timeout_ms, uint32_t poll_interval_us) c
     auto timeout = std::chrono::milliseconds(timeout_ms);
     
     while (true) {
-        // 检查是否就绪且不忙
         if ((status_reg & MAILBOX_READY) && !(status_reg & MAILBOX_BUSY)) {
             return true;
         }
@@ -318,14 +330,13 @@ bool mailbox_t::wait_for_ready(uint32_t timeout_ms, uint32_t poll_interval_us) c
             return false;
         }
         
-        // 短暂休眠避免过于频繁的轮询
         std::this_thread::sleep_for(std::chrono::microseconds(poll_interval_us));
     }
 }
 
 // 完整的send_command函数（包含等待和回调）
-uint32_t mailbox_t::send_command_complete(uint32_t command, uint64_t data_addr,
-                                         uint32_t data_size, uint64_t vector_config,
+uint32_t mailbox_t::send_command_complete(uint32_t command, uint64_t data0,
+                                         uint64_t data1, uint64_t data2, uint64_t data3,
                                          uint32_t timeout_ms, uint32_t poll_interval_us,
                                          TriggerCallback trigger_callback) {
     if (debug_) {
@@ -336,13 +347,13 @@ uint32_t mailbox_t::send_command_complete(uint32_t command, uint64_t data_addr,
     // 检查mailbox是否就绪
     if (!wait_for_ready(timeout_ms, poll_interval_us)) {
         std::cerr << "[MAILBOX] Mailbox not ready" << std::endl;
-        return 0xFFFFFFFF;  // 错误码
+        return 0xFFFFFFFF;
     }
     
     // 设置命令参数
-    uint32_t response = send_command(command, data_addr, data_size, vector_config);
+    uint32_t response = send_command(command, data0, data1, data2, data3);
     
-    if (response == 0xFFFFFFFF) {  // 错误码
+    if (response == 0xFFFFFFFF) {
         return response;
     }
     
@@ -350,9 +361,8 @@ uint32_t mailbox_t::send_command_complete(uint32_t command, uint64_t data_addr,
     if (trigger_callback) {
         trigger_callback();
     } else {
-        // 如果没有提供触发回调，记录警告
         if (debug_) {
-            std::cout << "[MAILBOX] No trigger callback provided, command execution not triggered" << std::endl;
+            std::cout << "[MAILBOX] No trigger callback provided" << std::endl;
         }
         return 0xFFFFFFFF;
     }
@@ -361,13 +371,12 @@ uint32_t mailbox_t::send_command_complete(uint32_t command, uint64_t data_addr,
         std::cout << "[MAILBOX] Command execution triggered, waiting for firmware response..." << std::endl;
     }
     
-    // 等待命令处理完成（固件处理命令并设置响应）
+    // 等待命令处理完成
     auto start = std::chrono::steady_clock::now();
     auto timeout = std::chrono::milliseconds(timeout_ms);
     
     while (true) {
-        // 检查是否不再忙（固件已处理完命令）
-        if (!(status_reg & MAILBOX_BUSY)) {  // BUSY 位为 0
+        if (!(status_reg & MAILBOX_BUSY)) {
             response = response_reg;
             
             if (debug_) {
@@ -380,11 +389,10 @@ uint32_t mailbox_t::send_command_complete(uint32_t command, uint64_t data_addr,
         auto now = std::chrono::steady_clock::now();
         if (now - start > timeout) {
             std::cerr << "[MAILBOX] Command timeout" << std::endl;
-            response = 0xFFFFFFFF;  // 超时错误
+            response = 0xFFFFFFFF;
             break;
         }
         
-        // 短暂休眠避免过于频繁的轮询
         std::this_thread::sleep_for(std::chrono::microseconds(poll_interval_us));
     }
     
@@ -393,15 +401,12 @@ uint32_t mailbox_t::send_command_complete(uint32_t command, uint64_t data_addr,
         command_callback_(command, response);
     }
     
-    // 检查错误
     if (response != 0 && error_callback_) {
         error_callback_(response);
     }
     
     return response;
 }
-
-
 
 // 模板实例化
 template uint32_t mailbox_t::read_register<uint32_t>(reg_t offset) const;

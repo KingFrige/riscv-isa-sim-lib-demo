@@ -49,43 +49,44 @@ uint32_t handle_hi_command(void) {
     return MAILBOX_SUCCESS;
 }
 
-uint32_t handle_vector_load(uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
+// 新接口：使用 data0-3
+uint32_t handle_vector_load(uint64_t data0, uint64_t data1, uint64_t data2, uint64_t data3) {
     printf("[FIRMWARE]: Vector load command received\n");
-    printf("[FIRMWARE]: Data address: 0x%lx\n", data_addr);
-    printf("[FIRMWARE]: Data size: %u\n", data_size);
-    printf("[FIRMWARE]: Vector config: 0x%lx\n", vector_config);
+    printf("[FIRMWARE]: Data0 (addr): 0x%lx\n", data0);
+    printf("[FIRMWARE]: Data1 (size): 0x%lx\n", data1);
+    (void)data2; (void)data3; // Reserved for future use
     return MAILBOX_SUCCESS;
 }
 
-uint32_t handle_vector_store(uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
+uint32_t handle_vector_store(uint64_t data0, uint64_t data1, uint64_t data2, uint64_t data3) {
     printf("[FIRMWARE]: Vector store command received\n");
-    printf("[FIRMWARE]: Data address: 0x%lx\n", data_addr);
-    printf("[FIRMWARE]: Data size: %u\n", data_size);
-    printf("[FIRMWARE]: Vector config: 0x%lx\n", vector_config);
+    printf("[FIRMWARE]: Data0 (addr): 0x%lx\n", data0);
+    printf("[FIRMWARE]: Data1 (size): 0x%lx\n", data1);
+    (void)data2; (void)data3; // Reserved for future use
     return MAILBOX_SUCCESS;
 }
 
-uint32_t handle_vector_compute(uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
+uint32_t handle_vector_compute(uint64_t data0, uint64_t data1, uint64_t data2, uint64_t data3) {
     printf("[FIRMWARE]: Vector compute command received\n");
-    printf("[FIRMWARE]: Data address: 0x%lx\n", data_addr);
-    printf("[FIRMWARE]: Data size: %u\n", data_size);
-    printf("[FIRMWARE]: Vector config: 0x%lx\n", vector_config);
+    printf("[FIRMWARE]: Data0 (addr): 0x%lx\n", data0);
+    printf("[FIRMWARE]: Data1 (size): 0x%lx\n", data1);
+    (void)data2; (void)data3; // Reserved for future use
     return MAILBOX_SUCCESS;
 }
 
-uint32_t handle_softmax_command(uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
+uint32_t handle_softmax_command(uint64_t data0, uint64_t data1, uint64_t data2, uint64_t data3) {
     printf("[FIRMWARE]: Softmax command received\n");
-    printf("[FIRMWARE]: Data address: 0x%lx\n", data_addr);
-    printf("[FIRMWARE]: Data size: %u\n", data_size);
-    (void)vector_config; // Reserved for future use
+    printf("[FIRMWARE]: Data0 (addr): 0x%lx\n", data0);
+    printf("[FIRMWARE]: Data1 (size): 0x%lx\n", data1);
+    (void)data2; (void)data3; // Reserved for future use
 
-    if (data_addr == 0 || data_size == 0) {
+    if (data0 == 0 || data1 == 0) {
         printf("[FIRMWARE]: Invalid parameters for softmax\n");
         return MAILBOX_ERR_INVALID_PARAM;
     }
 
-    uint32_t num_elements = data_size / 4;
-    if (num_elements == 0 || data_size % 4 != 0) {
+    uint32_t num_elements = data1 / 4;
+    if (num_elements == 0 || data1 % 4 != 0) {
         printf("[FIRMWARE]: Invalid data size for softmax\n");
         return MAILBOX_ERR_INVALID_PARAM;
     }
@@ -97,19 +98,19 @@ uint32_t handle_softmax_command(uint64_t data_addr, uint32_t data_size, uint64_t
     return MAILBOX_SUCCESS;
 }
 
-uint32_t handle_exp_command(uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
+uint32_t handle_exp_command(uint64_t data0, uint64_t data1, uint64_t data2, uint64_t data3) {
     printf("[FIRMWARE]: EXP command received\n");
-    printf("[FIRMWARE]: Data address: 0x%lx\n", data_addr);
-    printf("[FIRMWARE]: Data size: %u\n", data_size);
-    printf("[FIRMWARE]: Vector config: 0x%lx\n", vector_config);
+    printf("[FIRMWARE]: Data0 (addr): 0x%lx\n", data0);
+    printf("[FIRMWARE]: Data1 (size): 0x%lx\n", data1);
+    (void)data2; (void)data3; // Reserved for future use
 
-    if (data_addr == 0 || data_size == 0) {
+    if (data0 == 0 || data1 == 0) {
         printf("[FIRMWARE]: Invalid parameters for exp\n");
         return MAILBOX_ERR_INVALID_PARAM;
     }
 
-    uint32_t num_elements = data_size / 2;  // BF16 = 2 bytes per element
-    if (num_elements == 0 || data_size % 2 != 0) {
+    uint32_t num_elements = data1 / 2;  // BF16 = 2 bytes per element
+    if (num_elements == 0 || data1 % 2 != 0) {
         printf("[FIRMWARE]: Invalid data size for exp\n");
         return MAILBOX_ERR_INVALID_PARAM;
     }
@@ -121,19 +122,19 @@ uint32_t handle_exp_command(uint64_t data_addr, uint32_t data_size, uint64_t vec
     return MAILBOX_SUCCESS;
 }
 
-uint32_t handle_quant_command(uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
+uint32_t handle_quant_command(uint64_t data0, uint64_t data1, uint64_t data2, uint64_t data3) {
     printf("[FIRMWARE]: QUANT command received\n");
-    printf("[FIRMWARE]: Data address: 0x%lx\n", data_addr);
-    printf("[FIRMWARE]: Data size: %u\n", data_size);
-    printf("[FIRMWARE]: Vector config: 0x%lx\n", vector_config);
+    printf("[FIRMWARE]: Data0 (addr): 0x%lx\n", data0);
+    printf("[FIRMWARE]: Data1 (size): 0x%lx\n", data1);
+    (void)data2; (void)data3; // Reserved for future use
 
-    if (data_addr == 0 || data_size == 0) {
+    if (data0 == 0 || data1 == 0) {
         printf("[FIRMWARE]: Invalid parameters for quant\n");
         return MAILBOX_ERR_INVALID_PARAM;
     }
 
-    uint32_t num_elements = data_size / 2;  // BF16 = 2 bytes per element
-    if (num_elements == 0 || data_size % 2 != 0) {
+    uint32_t num_elements = data1 / 2;  // BF16 = 2 bytes per element
+    if (num_elements == 0 || data1 % 2 != 0) {
         printf("[FIRMWARE]: Invalid data size for quant\n");
         return MAILBOX_ERR_INVALID_PARAM;
     }
@@ -148,9 +149,12 @@ uint32_t handle_quant_command(uint64_t data_addr, uint32_t data_size, uint64_t v
 // Mailbox 命令处理主函数
 void handle_mailbox_command(void) {
     uint32_t command = read_mailbox_reg(MAILBOX_COMMAND_OFFSET);
-    uint64_t data_addr = read64(MAILBOX_BASE + MAILBOX_DATA_ADDR_OFFSET);
-    uint32_t data_size = read_mailbox_reg(MAILBOX_DATA_SIZE_OFFSET);
-    uint64_t vector_config = read64(MAILBOX_BASE + MAILBOX_VECTOR_CONFIG_OFFSET);
+    
+    // 新接口：使用 data0-3 寄存器
+    uint64_t data0 = mailbox_read_data0();
+    uint64_t data1 = mailbox_read_data1();
+    uint64_t data2 = mailbox_read_data2();
+    uint64_t data3 = mailbox_read_data3();
     
     uint32_t response = MAILBOX_ERR_INVALID_CMD;
     
@@ -162,22 +166,22 @@ void handle_mailbox_command(void) {
             response = handle_hi_command();
             break;
         case MAILBOX_CMD_VECTOR_LOAD:
-            response = handle_vector_load(data_addr, data_size, vector_config);
+            response = handle_vector_load(data0, data1, data2, data3);
             break;
         case MAILBOX_CMD_VECTOR_STORE:
-            response = handle_vector_store(data_addr, data_size, vector_config);
+            response = handle_vector_store(data0, data1, data2, data3);
             break;
         case MAILBOX_CMD_VECTOR_COMPUTE:
-            response = handle_vector_compute(data_addr, data_size, vector_config);
+            response = handle_vector_compute(data0, data1, data2, data3);
             break;
         case MAILBOX_CMD_SOFTMAX:
-            response = handle_softmax_command(data_addr, data_size, vector_config);
+            response = handle_softmax_command(data0, data1, data2, data3);
             break;
         case MAILBOX_CMD_EXP:
-            response = handle_exp_command(data_addr, data_size, vector_config);
+            response = handle_exp_command(data0, data1, data2, data3);
             break;
         case MAILBOX_CMD_QUANT:
-            response = handle_quant_command(data_addr, data_size, vector_config);
+            response = handle_quant_command(data0, data1, data2, data3);
             break;
         default:
             printf("[FIRMWARE] Unknown command: 0x%x\n", command);

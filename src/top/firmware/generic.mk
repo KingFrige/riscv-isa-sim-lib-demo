@@ -32,13 +32,14 @@ BUILD_DIR ?= build
 
 # 源文件配置（必须在包含此文件前定义 FIRMWARE_SRCS）
 FIRMWARE_SRCS ?= $(wildcard *.c)
-UTIL_SRCS = $(COMMON_DIR)/printf.c
+UTIL_SRCS = $(COMMON_DIR)/printf.c $(COMMON_DIR)/mailbox.c
 SRCS = $(FIRMWARE_SRCS) $(UTIL_SRCS)
 
 # 目标文件
 OBJS = $(patsubst %.c,$(BUILD_DIR)/%.o,$(FIRMWARE_SRCS))
 OBJS += $(BUILD_DIR)/printf.o
 OBJS += $(BUILD_DIR)/start.o
+OBJS += $(BUILD_DIR)/mailbox.o
 
 # 构建目标
 ELF = $(BUILD_DIR)/firmware.elf
@@ -59,6 +60,11 @@ $(BUILD_DIR)/%.o: %.c
 
 # 编译 common/printf.c
 $(BUILD_DIR)/printf.o: $(COMMON_DIR)/printf.c
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# 编译 common/mailbox.c
+$(BUILD_DIR)/mailbox.o: $(COMMON_DIR)/mailbox.c
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 

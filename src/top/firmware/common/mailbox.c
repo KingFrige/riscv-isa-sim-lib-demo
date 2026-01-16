@@ -1,16 +1,23 @@
 /* mailbox.c - Mailbox device access functions
- * 所有函数保留供将来使用，具体使用可在 main.c 中添加
+ * 按 rvv_mailbox.md 设计
+ * 地址 0x0000: STATUS (32位)
+ * 地址 0x0008: COMMAND (32位)
+ * 地址 0x000C: RESPONSE (32位)
+ * 地址 0x0020-0x0038: DATA0-3 (64位)
  */
 #include "mailbox.h"
 
-// Mailbox 设备状态
+// Mailbox 设备状态 (按 rvv_mailbox.md 设计)
 typedef struct {
-    volatile uint32_t status;
-    volatile uint32_t command;
-    volatile uint64_t data_addr;
-    volatile uint32_t data_size;
-    volatile uint32_t response;
-    volatile uint64_t vector_config;
+    volatile uint32_t status;              // 0x0000
+    volatile uint8_t  reserved0[4];        // padding: 0x0004-0x0007
+    volatile uint32_t command;             // 0x0008
+    volatile uint32_t response;            // 0x000C
+    volatile uint8_t  reserved1[16];       // padding: 0x0010-0x001F
+    volatile uint64_t data0;               // 0x0020
+    volatile uint64_t data1;               // 0x0028
+    volatile uint64_t data2;               // 0x0030
+    volatile uint64_t data3;               // 0x0038
 } mailbox_regs_t;
 
 static mailbox_regs_t* mailbox = (mailbox_regs_t*)MAILBOX_BASE;
@@ -24,16 +31,21 @@ uint32_t mailbox_read_command(void) {
     return mailbox->command;
 }
 
-uint64_t mailbox_read_data_addr(void) {
-    return mailbox->data_addr;
+// 新接口：DATA0-3 访问函数
+uint64_t mailbox_read_data0(void) {
+    return mailbox->data0;
 }
 
-uint32_t mailbox_read_data_size(void) {
-    return mailbox->data_size;
+uint64_t mailbox_read_data1(void) {
+    return mailbox->data1;
 }
 
-uint64_t mailbox_read_vector_config(void) {
-    return mailbox->vector_config;
+uint64_t mailbox_read_data2(void) {
+    return mailbox->data2;
+}
+
+uint64_t mailbox_read_data3(void) {
+    return mailbox->data3;
 }
 
 void mailbox_write_response(uint32_t value) {

@@ -126,33 +126,33 @@ public:
         }
     }
     
-    // Mailbox 命令接口
-    uint32_t mailbox_send_command(int command_idx, uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
+    // Mailbox 命令接口 (新接口：使用 data0-3)
+    uint32_t mailbox_send_command(int command_idx, uint64_t data0, uint64_t data1, uint64_t data2, uint64_t data3) {
         // 根据命令索引调用相应的命令函数
         switch (command_idx) {
             case mailbox_t::MAILBOX_CMD_HELLO:
-                return send_command(mailbox_t::MAILBOX_CMD_HELLO, 0, 0, 0);
+                return send_command(mailbox_t::MAILBOX_CMD_HELLO, 0, 0, 0, 0);
             case mailbox_t::MAILBOX_CMD_HI:
-                return send_command(mailbox_t::MAILBOX_CMD_HI, 0, 0, 0);
+                return send_command(mailbox_t::MAILBOX_CMD_HI, 0, 0, 0, 0);
             case mailbox_t::MAILBOX_CMD_VECTOR_LOAD:
-                return send_command(mailbox_t::MAILBOX_CMD_VECTOR_LOAD, data_addr, data_size, vector_config);
+                return send_command(mailbox_t::MAILBOX_CMD_VECTOR_LOAD, data0, data1, data2, data3);
             case mailbox_t::MAILBOX_CMD_VECTOR_STORE:
-                return send_command(mailbox_t::MAILBOX_CMD_VECTOR_STORE, data_addr, data_size, vector_config);
+                return send_command(mailbox_t::MAILBOX_CMD_VECTOR_STORE, data0, data1, data2, data3);
             case mailbox_t::MAILBOX_CMD_VECTOR_COMPUTE:
-                return send_command(mailbox_t::MAILBOX_CMD_VECTOR_COMPUTE, data_addr, data_size, vector_config);
+                return send_command(mailbox_t::MAILBOX_CMD_VECTOR_COMPUTE, data0, data1, data2, data3);
             case mailbox_t::MAILBOX_CMD_SOFTMAX:
-                return send_command(mailbox_t::MAILBOX_CMD_SOFTMAX, data_addr, data_size, vector_config);
+                return send_command(mailbox_t::MAILBOX_CMD_SOFTMAX, data0, data1, data2, data3);
             case mailbox_t::MAILBOX_CMD_EXP:
-                return send_command(mailbox_t::MAILBOX_CMD_EXP, data_addr, data_size, vector_config);
+                return send_command(mailbox_t::MAILBOX_CMD_EXP, data0, data1, data2, data3);
             case mailbox_t::MAILBOX_CMD_QUANT:
-                return send_command(mailbox_t::MAILBOX_CMD_QUANT, data_addr, data_size, vector_config);
+                return send_command(mailbox_t::MAILBOX_CMD_QUANT, data0, data1, data2, data3);
             default:
                 std::cerr << "[SpikeWrapper] Invalid command index: " << command_idx << std::endl;
                 return 0xFFFFFFFF;  // 错误码
         }
     }
     
-    uint32_t send_command(uint32_t command, uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
+    uint32_t send_command(uint32_t command, uint64_t data0, uint64_t data1, uint64_t data2, uint64_t data3) {
         std::lock_guard<std::mutex> lock(command_mutex_);
         
         if (debug_) {
@@ -178,8 +178,8 @@ public:
             mailbox_dev_->store(mailbox_t::MAILBOX_STATUS_OFFSET, 4, (const uint8_t*)&trigger);
         };
         
-        // 使用 mailbox 设备的完整 send_command 函数
-        return mailbox_dev_->send_command_complete(command, data_addr, data_size, vector_config,
+        // 使用 mailbox 设备的完整 send_command 函数 (新接口)
+        return mailbox_dev_->send_command_complete(command, data0, data1, data2, data3,
                                                   command_timeout_ms_, poll_interval_us_,
                                                   trigger_callback);
     }
@@ -582,13 +582,12 @@ bool SpikeWrapper::wait(uint32_t timeout_ms) {
     return impl_->wait(timeout_ms);
 }
 
-uint32_t SpikeWrapper::mailbox_send_command(int command_idx, uint64_t data_addr, uint32_t data_size, uint64_t vector_config) {
-    return impl_->mailbox_send_command(command_idx, data_addr, data_size, vector_config);
+uint32_t SpikeWrapper::mailbox_send_command(int command_idx, uint64_t data0, uint64_t data1, uint64_t data2, uint64_t data3) {
+    return impl_->mailbox_send_command(command_idx, data0, data1, data2, data3);
 }
 
-uint32_t SpikeWrapper::send_command(uint32_t command, uint64_t data_addr,
-                                   uint32_t data_size, uint64_t vector_config) {
-    return impl_->send_command(command, data_addr, data_size, vector_config);
+uint32_t SpikeWrapper::send_command(uint32_t command, uint64_t data0, uint64_t data1, uint64_t data2, uint64_t data3) {
+    return impl_->send_command(command, data0, data1, data2, data3);
 }
 
 uint32_t SpikeWrapper::get_mailbox_status() const {

@@ -63,28 +63,30 @@ public:
      */
     bool wait(uint32_t timeout_ms = 0);
     
-    // Mailbox 通信接口
+    // Mailbox 通信接口 (新接口：使用 data0-3)
     /**
      * @brief 发送自定义命令
      * @param command 命令代码
-     * @param data_addr 数据地址
-     * @param data_size 数据大小
-     * @param vector_config 向量配置
+     * @param data0 数据0 (64位)
+     * @param data1 数据1 (64位)
+     * @param data2 数据2 (64位)
+     * @param data3 数据3 (64位)
      * @return 命令执行结果
      */
-    uint32_t send_command(uint32_t command, uint64_t data_addr = 0,
-                         uint32_t data_size = 0, uint64_t vector_config = 0);
+    uint32_t send_command(uint32_t command, uint64_t data0 = 0,
+                         uint64_t data1 = 0, uint64_t data2 = 0, uint64_t data3 = 0);
     
-        /**
-         * @brief 通过命令索引发送命令（简化接口）
-         * @param command_idx 命令索引
-         * @param data_addr 数据地址
-         * @param data_size 数据大小
-         * @param vector_config 向量配置
-         * @return 命令执行结果
-         */
-        uint32_t mailbox_send_command(int command_idx, uint64_t data_addr = 0,
-                                     uint32_t data_size = 0, uint64_t vector_config = 0);    
+    /**
+     * @brief 通过命令索引发送命令（简化接口）
+     * @param command_idx 命令索引
+     * @param data0 数据0 (64位)
+     * @param data1 数据1 (64位)
+     * @param data2 数据2 (64位)
+     * @param data3 数据3 (64位)
+     * @return 命令执行结果
+     */
+    uint32_t mailbox_send_command(int command_idx, uint64_t data0 = 0,
+                                 uint64_t data1 = 0, uint64_t data2 = 0, uint64_t data3 = 0);    
     // 状态查询
     
     /**

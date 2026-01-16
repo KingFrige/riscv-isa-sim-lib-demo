@@ -1,18 +1,23 @@
-#ifndef _FIRMWARE_H
-#define _FIRMWARE_H
+#ifndef _FIRMWARE_MAILBOX_H
+#define _FIRMWARE_MAILBOX_H
 
 #include <stdint.h>
 
 // Mailbox 寄存器定义
 #define MAILBOX_BASE          0x60000000
 
-// 寄存器偏移
+// 寄存器偏移 (按 rvv_mailbox.md 设计)
+// 地址 0x0000: STATUS (32位)
+// 地址 0x0008: COMMAND (32位)
+// 地址 0x000C: RESPONSE (32位)
+// 地址 0x0020-0x0038: DATA0-3 (64位)
 #define MAILBOX_STATUS_OFFSET     0x0000
-#define MAILBOX_COMMAND_OFFSET    0x0004
-#define MAILBOX_DATA_ADDR_OFFSET  0x0008
-#define MAILBOX_DATA_SIZE_OFFSET  0x0010
-#define MAILBOX_RESPONSE_OFFSET   0x0014
-#define MAILBOX_VECTOR_CONFIG_OFFSET 0x0018
+#define MAILBOX_COMMAND_OFFSET    0x0008
+#define MAILBOX_RESPONSE_OFFSET   0x000C
+#define MAILBOX_DATA0_OFFSET      0x0020  // 64位数据寄存器
+#define MAILBOX_DATA1_OFFSET      0x0028
+#define MAILBOX_DATA2_OFFSET      0x0030
+#define MAILBOX_DATA3_OFFSET      0x0038
 
 // 状态寄存器位定义
 #define MAILBOX_READY      0x00000001
@@ -43,25 +48,26 @@ void handle_mailbox_command(void);
 uint32_t read_mailbox_reg(uint32_t offset);
 void write_mailbox_reg(uint32_t offset, uint32_t value);
 
-// 命令处理函数
+// 命令处理函数 (新接口：使用 data0-3)
 uint32_t handle_hello_command(void);
 uint32_t handle_hi_command(void);
-uint32_t handle_vector_load(uint64_t data_addr, uint32_t data_size, uint64_t vector_config);
-uint32_t handle_vector_store(uint64_t data_addr, uint32_t data_size, uint64_t vector_config);
-uint32_t handle_vector_compute(uint64_t data_addr, uint32_t data_size, uint64_t vector_config);
-uint32_t handle_softmax_command(uint64_t data_addr, uint32_t data_size, uint64_t vector_config);
-uint32_t handle_exp_command(uint64_t data_addr, uint32_t data_size, uint64_t vector_config);
-uint32_t handle_quant_command(uint64_t data_addr, uint32_t data_size, uint64_t vector_config);
+uint32_t handle_vector_load(uint64_t data0, uint64_t data1, uint64_t data2, uint64_t data3);
+uint32_t handle_vector_store(uint64_t data0, uint64_t data1, uint64_t data2, uint64_t data3);
+uint32_t handle_vector_compute(uint64_t data0, uint64_t data1, uint64_t data2, uint64_t data3);
+uint32_t handle_softmax_command(uint64_t data0, uint64_t data1, uint64_t data2, uint64_t data3);
+uint32_t handle_exp_command(uint64_t data0, uint64_t data1, uint64_t data2, uint64_t data3);
+uint32_t handle_quant_command(uint64_t data0, uint64_t data1, uint64_t data2, uint64_t data3);
 
 // 工具函数
 void delay(uint32_t cycles);
 
-// Mailbox 设备访问函数
+// Mailbox 设备访问函数 (新接口)
 uint32_t mailbox_read_status(void);
 uint32_t mailbox_read_command(void);
-uint64_t mailbox_read_data_addr(void);
-uint32_t mailbox_read_data_size(void);
-uint64_t mailbox_read_vector_config(void);
+uint64_t mailbox_read_data0(void);
+uint64_t mailbox_read_data1(void);
+uint64_t mailbox_read_data2(void);
+uint64_t mailbox_read_data3(void);
 void mailbox_write_response(uint32_t value);
 void mailbox_clear_busy(void);
 int mailbox_has_command(void);
@@ -69,4 +75,4 @@ void mailbox_send_response(uint32_t response);
 
 #include "../common/printf.h"
 
-#endif // _FIRMWARE_H
+#endif // _FIRMWARE_MAILBOX_H

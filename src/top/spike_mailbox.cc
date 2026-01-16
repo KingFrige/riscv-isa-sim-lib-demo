@@ -152,7 +152,7 @@ struct TestResult {
 TestResult test_hello_command(SpikeWrapper& wrapper) {
     std::cout << "\n--- Testing HELLO command ---" << std::endl;
     
-    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_HELLO);
+    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_HELLO, 0, 0, 0, 0);
     
     if (response == mailbox_t::MAILBOX_SUCCESS) {
         return TestResult("HELLO command", true, "Executed successfully");
@@ -167,7 +167,7 @@ TestResult test_hello_command(SpikeWrapper& wrapper) {
 TestResult test_hi_command(SpikeWrapper& wrapper) {
     std::cout << "\n--- Testing HI command ---" << std::endl;
     
-    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_HI);
+    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_HI, 0, 0, 0, 0);
     
     if (response == mailbox_t::MAILBOX_SUCCESS) {
         return TestResult("HI command", true, "Executed successfully");
@@ -186,7 +186,8 @@ TestResult test_vector_load_command(SpikeWrapper& wrapper) {
     TestBuffer buffer(1024, "Vector Load Test");
     buffer.print_info();
     
-    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_VECTOR_LOAD, buffer.address(), buffer.size(), 0);
+    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_VECTOR_LOAD, 
+                                                     buffer.address(), buffer.size(), 0, 0);
     
     if (response == mailbox_t::MAILBOX_SUCCESS) {
         return TestResult("VECTOR LOAD command", true, "Executed successfully");
@@ -205,7 +206,8 @@ TestResult test_vector_store_command(SpikeWrapper& wrapper) {
     TestBuffer buffer(512, "Vector Store Test");
     buffer.print_info();
     
-    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_VECTOR_STORE, buffer.address(), buffer.size(), 0);
+    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_VECTOR_STORE,
+                                                     buffer.address(), buffer.size(), 0, 0);
     
     if (response == mailbox_t::MAILBOX_SUCCESS) {
         return TestResult("VECTOR STORE command", true, "Executed successfully");
@@ -224,7 +226,8 @@ TestResult test_vector_compute_command(SpikeWrapper& wrapper) {
     TestBuffer buffer(256, "Vector Compute Test");
     buffer.print_info();
     
-    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_VECTOR_COMPUTE, buffer.address(), buffer.size(), 0);
+    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_VECTOR_COMPUTE,
+                                                     buffer.address(), buffer.size(), 0, 0);
     
     if (response == mailbox_t::MAILBOX_SUCCESS) {
         return TestResult("VECTOR COMPUTE command", true, "Executed successfully");
@@ -274,7 +277,8 @@ TestResult test_softmax_command(SpikeWrapper& wrapper) {
     }
     std::cout << "]" << std::endl;
 
-    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_SOFTMAX, buffer.address(), buffer.size(), 0);
+    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_SOFTMAX,
+                                                     buffer.address(), buffer.size(), 0, 0);
 
     if (response == mailbox_t::MAILBOX_SUCCESS) {
         return TestResult("SOFTMAX command", true, "Executed successfully");
@@ -314,7 +318,8 @@ TestResult test_exp_command(SpikeWrapper& wrapper) {
     }
     std::cout << "]" << std::endl;
 
-    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_EXP, buffer.address(), buffer.size(), 0);
+    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_EXP,
+                                                     buffer.address(), buffer.size(), 0, 0);
 
     if (response == mailbox_t::MAILBOX_SUCCESS) {
         return TestResult("EXP command", true, "Executed successfully");
@@ -355,7 +360,8 @@ TestResult test_quant_command(SpikeWrapper& wrapper) {
     }
     std::cout << "]" << std::endl;
 
-    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_QUANT, buffer.address(), buffer.size(), 0);
+    uint32_t response = wrapper.mailbox_send_command(mailbox_t::MAILBOX_CMD_QUANT,
+                                                     buffer.address(), buffer.size(), 0, 0);
 
     if (response == mailbox_t::MAILBOX_SUCCESS) {
         return TestResult("QUANT command", true, "Executed successfully");
@@ -370,7 +376,7 @@ TestResult test_quant_command(SpikeWrapper& wrapper) {
 TestResult test_invalid_command(SpikeWrapper& wrapper) {
     std::cout << "\n--- Testing INVALID command ---" << std::endl;
     
-    uint32_t response = wrapper.send_command(0xFFFFFFFF);
+    uint32_t response = wrapper.send_command(0xFFFFFFFF, 0, 0, 0, 0);
     
     // 无效命令应该返回错误
     if (response == mailbox_t::MAILBOX_ERR_INVALID_CMD) {

@@ -17,13 +17,18 @@ public:
     // 寄存器偏移定义
     static constexpr reg_t MAILBOX_SIZE = 0x1000;     // 4KB 地址空间
     
-    // 寄存器偏移
+    // 寄存器偏移 (按 rvv_mailbox.md 设计)
+    // 地址 0x0000: STATUS (32位)
+    // 地址 0x0008: COMMAND (32位)
+    // 地址 0x000C: RESPONSE (32位)
+    // 地址 0x0020-0x0038: DATA0-3 (64位)
     static constexpr reg_t MAILBOX_STATUS_OFFSET      = 0x0000;
-    static constexpr reg_t MAILBOX_COMMAND_OFFSET     = 0x0004;
-    static constexpr reg_t MAILBOX_DATA_ADDR_OFFSET   = 0x0008;
-    static constexpr reg_t MAILBOX_DATA_SIZE_OFFSET   = 0x0010;
-    static constexpr reg_t MAILBOX_RESPONSE_OFFSET    = 0x0014;
-    static constexpr reg_t MAILBOX_VECTOR_CONFIG_OFFSET = 0x0018;
+    static constexpr reg_t MAILBOX_COMMAND_OFFSET     = 0x0008;
+    static constexpr reg_t MAILBOX_RESPONSE_OFFSET    = 0x000C;
+    static constexpr reg_t MAILBOX_DATA0_OFFSET       = 0x0020;
+    static constexpr reg_t MAILBOX_DATA1_OFFSET       = 0x0028;
+    static constexpr reg_t MAILBOX_DATA2_OFFSET       = 0x0030;
+    static constexpr reg_t MAILBOX_DATA3_OFFSET       = 0x0038;
     
     // 状态寄存器位定义
     static constexpr uint32_t MAILBOX_READY      = 0x00000001;
@@ -58,7 +63,7 @@ public:
     reg_t size() override { return MAILBOX_SIZE; }
     
     // 命令处理回调函数类型
-    using command_handler_t = std::function<uint32_t(uint32_t command, reg_t data_addr, uint32_t data_size, uint64_t vector_config)>;
+    using command_handler_t = std::function<uint32_t(uint32_t command, uint64_t data0, uint64_t data1, uint64_t data2, uint64_t data3)>;
     
     // 设置命令处理器
     void set_command_handler(command_handler_t handler) { command_handler = handler; }
@@ -74,8 +79,8 @@ public:
     void on_firmware_command_processed(uint32_t response);
     
     // 发送命令到mailbox（从spike_wrapper.cc迁移过来的函数）
-    uint32_t send_command(uint32_t command, uint64_t data_addr = 0,
-                         uint32_t data_size = 0, uint64_t vector_config = 0);
+    uint32_t send_command(uint32_t command, uint64_t data0 = 0,
+                         uint64_t data1 = 0, uint64_t data2 = 0, uint64_t data3 = 0);
     
     // 回调函数类型定义
     using CommandCallback = std::function<void(uint32_t command, uint32_t response)>;
@@ -87,25 +92,11 @@ public:
     void set_error_callback(ErrorCallback callback);
     
     // 完整的send_command函数（包含等待和回调）
-    uint32_t send_command_complete(uint32_t command, uint64_t data_addr = 0,
-                                  uint32_t data_size = 0, uint64_t vector_config = 0,
+    uint32_t send_command_complete(uint32_t command, uint64_t data0 = 0,
+                                  uint64_t data1 = 0, uint64_t data2 = 0, uint64_t data3 = 0,
                                   uint32_t timeout_ms = 2000, uint32_t poll_interval_us = 100,
                                   TriggerCallback trigger_callback = nullptr);
 
-    // 便捷方法：发送 EXP 命令
-    uint32_t send_exp_command(uint64_t data_addr, uint32_t data_size, uint64_t vector_config = 0,
-                              uint32_t timeout_ms = 2000, uint32_t poll_interval_us = 100) {
-        return send_command_complete(MAILBOX_CMD_EXP, data_addr, data_size, vector_config,
-                                     timeout_ms, poll_interval_us);
-    }
-
-    // 便捷方法：发送 QUANT 命令
-    uint32_t send_quant_command(uint64_t data_addr, uint32_t data_size, uint64_t vector_config = 0,
-                                uint32_t timeout_ms = 2000, uint32_t poll_interval_us = 100) {
-        return send_command_complete(MAILBOX_CMD_QUANT, data_addr, data_size, vector_config,
-                                     timeout_ms, poll_interval_us);
-    }
-    
 private:
     const simif_t* sim;
     reg_t base_address_;  // 设备基地址
@@ -113,10 +104,11 @@ private:
     // 寄存器状态
     uint32_t status_reg;
     uint32_t command_reg;
-    uint64_t data_addr_reg;
-    uint32_t data_size_reg;
     uint32_t response_reg;
-    uint64_t vector_config_reg;
+    uint64_t data0_reg;
+    uint64_t data1_reg;
+    uint64_t data2_reg;
+    uint64_t data3_reg;
     
     // 命令处理器
     command_handler_t command_handler;

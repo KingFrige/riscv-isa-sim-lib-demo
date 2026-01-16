@@ -18,14 +18,14 @@ RVV Mailbox 是一个用于 RISC-V 向量扩展（RVV）的通信机制，允许
 RVV Mailbox 使用内存映射 I/O（MMIO）方式，在特定的内存地址上定义一组寄存器：
 
 | 地址偏移 | 寄存器名称 | 宽度 | 描述 |
-|---------|-----------|------|------|
-| 0x0000 | MAILBOX_STATUS | 32位 | 邮箱状态寄存器 |
-| 0x0004 | MAILBOX_COMMAND | 32位 | 命令寄存器 |
-| 0x0008 | MAILBOX_RESPONSE | 32位 | 响应寄存器 |
-| 0x0020 | MAILBOX_DATA0 | 64位 | 数据寄存器 |
-| 0x0024 | MAILBOX_DATA1 | 64位 | 数据寄存器 |
-| 0x0028 | MAILBOX_DATA2 | 64位 | 数据寄存器 |
-| 0x002C | MAILBOX_DATA3 | 64位 | 数据寄存器 |
+|------- --|-----------|------|------|
+| 0x0000   | MAILBOX_STATUS | 32位 | 邮箱状态寄存器 |
+| 0x0008   | MAILBOX_COMMAND | 32位 | 命令寄存器 |
+| 0x000C   | MAILBOX_RESPONSE | 32位 | 响应寄存器 |
+| 0x0020   | MAILBOX_DATA0 | 64位 | 数据寄存器 |
+| 0x0028   | MAILBOX_DATA1 | 64位 | 数据寄存器 |
+| 0x0030   | MAILBOX_DATA2 | 64位 | 数据寄存器 |
+| 0x0038   | MAILBOX_DATA3 | 64位 | 数据寄存器 |
 
 ### 寄存器详细说明
 
