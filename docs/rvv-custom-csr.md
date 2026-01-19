@@ -11,15 +11,15 @@ RVV 通过 CSR 寄存器实现 mailbox 、bo 和 semaphore query/up 操作。以
 
 | CSR 地址 | 通道 | 寄存器名称 | 位宽 | 功能描述 |
 |---------|------|-----------|------|---------|
-| 0xF20 | Mail | MAIL_DATA0 | 64bit | Mail 数据寄存器 0 |
-| 0xF21 | Mail | MAIL_DATA1 | 64bit | Mail 数据寄存器 1 |
-| 0xF22 | Mail | MAIL_DATA2 | 64bit | Mail 数据寄存器 2 |
-| 0xF23 | Mail | MAIL_DATA3 | 64bit | Mail 数据寄存器 3 |
-| 0xF24 | Mail | MAIL_VALID | 1bit | Mail 有效状态标志 |
-| 0xF25 | Bo done | BO_DONE | 11bit | 完成信号（5bit wg_index + 6bit bar_index） |
-| 0xF26 | Se up | SE_UP | 11bit | 更新信号（5bit wg_index + 6bit bar_index） |
-| 0xF27 | Se query | SE_QUERY_LOCK | 11bit | 查询锁信号（5bit wg_index + 6bit bar_index） |
-| 0xF28 | Se query | SE_QUERY_COUNT | - | 查询计数寄存器 |
+| 0xBC0 | Mail | MAIL_DATA0 | 64bit | Mail 数据寄存器 0 |
+| 0xBC1 | Mail | MAIL_DATA1 | 64bit | Mail 数据寄存器 1 |
+| 0xBC2 | Mail | MAIL_DATA2 | 64bit | Mail 数据寄存器 2 |
+| 0xBC3 | Mail | MAIL_DATA3 | 64bit | Mail 数据寄存器 3 |
+| 0xBC4 | Mail | MAIL_VALID | 1bit | Mail 有效状态标志 |
+| 0xBC5 | Bo done | BO_DONE | 11bit | 完成信号（5bit wg_index + 6bit bar_index） |
+| 0xBC6 | Se up | SE_UP | 11bit | 更新信号（5bit wg_index + 6bit bar_index） |
+| 0xBC7 | Se query | SE_QUERY_LOCK | 11bit | 查询锁信号（5bit wg_index + 6bit bar_index） |
+| 0xBC8 | Se query | SE_QUERY_COUNT | - | 查询计数寄存器 |
 
 ### 接口信号
 
@@ -46,11 +46,11 @@ RVV 通过 CSR 寄存器实现 mailbox 、bo 和 semaphore query/up 操作。以
 Mail 通道用于通过 scheduler ring buffer 发送邮件，最大支持 256bit 数据。
 
 **数据传输流程：**
-1. 主机写入 4 个 64bit 数据到 CSR 0xF20-0xF23
-2. 主机写入 CSR 0xF24 置位 mail valid，通知 RVV 获取 mail
-3. RVV 通过轮询 CSR 0xF24 查询 mail 状态
-4. 当 valid 为高时，RVV 依次读取 CSR 0xF20-0xF23 获取 256bit 数据
-5. 读取完成后，RVV 写入 CSR 0xF24 清除 valid
+1. 主机写入 4 个 64bit 数据到 CSR 0xBC0-0xBC3
+2. 主机写入 CSR 0xBC4 置位 mail valid，通知 RVV 获取 mail
+3. RVV 通过轮询 CSR 0xBC4 查询 mail 状态
+4. 当 valid 为高时，RVV 依次读取 CSR 0xBC0-0xBC3 获取 256bit 数据
+5. 读取完成后，RVV 写入 CSR 0xBC4 清除 valid
 
 **vgr_port__addr 地址映射：**
 | Addr | 数据内容 | 位宽 |
@@ -70,23 +70,23 @@ Mail 通道用于通过 scheduler ring buffer 发送邮件，最大支持 256bit
 Se query 通道用于查询操作的同步机制。
 
 **操作流程：**
-1. RVV 写入 CSR 0xF27，data[5:0]=bar_index，data[10:6]=wg_index，发送 lock pulse
+1. RVV 写入 CSR 0xBC7，data[5:0]=bar_index，data[10:6]=wg_index，发送 lock pulse
 2. 同时将 query_cnt 清零
 3. 每次收到 notify pulse，query_cnt 加 1
-4. RVV 查询 CSR 0xF28，如果大于 0 表示上游有信号发送
-5. RVV 写入 CSR 0xF28 对 query_cnt 做减法操作（减少值不能大于查询得到的值）
+4. RVV 查询 CSR 0xBC8，如果大于 0 表示上游有信号发送
+5. RVV 写入 CSR 0xBC8 对 query_cnt 做减法操作（减少值不能大于查询得到的值）
 
 ### Se up 通道详细说明
 
 Se up 通道用于更新操作。
 
 **操作方式：**
-- RVV 写入 CSR 0xF26，data[5:0]=bar_index，data[10:6]=wg_index，发送 se_up_done
+- RVV 写入 CSR 0xBC6，data[5:0]=bar_index，data[10:6]=wg_index，发送 se_up_done
 
 ### Bo done 通道详细说明
 
 Bo done 通道用于完成信号通知。
 
 **操作方式：**
-- RVV 写入 CSR 0xF25，data[5:0]=bar_index，data[10:6]=wg_index，发送 bo_done
+- RVV 写入 CSR 0xBC5，data[5:0]=bar_index，data[10:6]=wg_index，发送 bo_done
 

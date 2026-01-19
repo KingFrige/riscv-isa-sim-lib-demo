@@ -5,16 +5,16 @@
 #include <cstddef>
 #include "csrs.h"
 
-// CSR 地址定义 (0x7C0 - 0x7C8)
-#define CSR_MAIL_DATA0     0x7C0
-#define CSR_MAIL_DATA1     0x7C1
-#define CSR_MAIL_DATA2     0x7C2
-#define CSR_MAIL_DATA3     0x7C3
-#define CSR_MAIL_VALID     0x7C4
-#define CSR_BO_DONE        0x7C5
-#define CSR_SE_UP          0x7C6
-#define CSR_SE_QUERY_LOCK  0x7C7
-#define CSR_SE_QUERY_COUNT 0x7C8
+// CSR 地址定义 (0xBC0 - 0xBC8)
+#define CSR_MAIL_DATA0     0xBC0
+#define CSR_MAIL_DATA1     0xBC1
+#define CSR_MAIL_DATA2     0xBC2
+#define CSR_MAIL_DATA3     0xBC3
+#define CSR_MAIL_VALID     0xBC4
+#define CSR_BO_DONE        0xBC5
+#define CSR_SE_UP          0xBC6
+#define CSR_SE_QUERY_LOCK  0xBC7
+#define CSR_SE_QUERY_COUNT 0xBC8
 
 // Mail data CSR (64-bit)
 class mail_data_csr_t : public basic_csr_t {
