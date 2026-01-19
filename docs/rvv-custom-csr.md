@@ -1,5 +1,8 @@
 # RVV custom csr 设计文档
 
+![](rvv-custom-csr.png)
+
+
 ## 架构设计
 
 ### CSR 寄存器总览

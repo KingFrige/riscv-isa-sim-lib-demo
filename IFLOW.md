@@ -14,11 +14,13 @@
 
 此外，项目还包含一个实验性扩展示例 (`src/xperimental`)，展示了如何为 Spike 添加自定义指令扩展。
 
+**当前开发状态**: 项目正在推进自定义 CSR (Control and Status Register) 功能开发，用于支持 Mailbox、Barrier Event (BO/SE) 等高级同步机制。
+
 ## 技术栈
 
 - **核心模拟器**: RISC-V ISA Simulator (Spike)
 - **编程语言**: C++ (主程序), C (测试软件), SystemC (系统级建模), RISC-V 汇编
-- **构建系统**: GNU Make, Autotools (Spike 子模块), Consolidated build script (`build_all.sh`)
+- **构建系统**: GNU Make, Autotools (Spike 子模块), 统一构建脚本 (`build_all.sh`)
 - **仿真环境**: SystemC 2.3+ (可选)
 - **工具链**: RISC-V GNU 工具链 (需支持 rv64imafdcv 架构)
 - **AI 推理**: 集成 BFloat16、MxFP8 等 AI 精度处理
@@ -29,15 +31,20 @@
 .
 ├── build/                  # 统一构建输出目录
 │   ├── firmware/           # 固件构建输出
-│   │   ├── fuse/          # Fuse 固件（Mailbox 通信测试）
+│   │   ├── fuse/          # Fuse 固件（Mailbox 通信 + 指令测试）
 │   │   ├── insn/          # 指令测试固件
 │   │   └── mailbox/       # Mailbox 通信固件
-│   ├── mailbox/           # Mailbox 包装器构建输出
+│   ├── insn/              # spike_insn 构建输出
+│   ├── mailbox/           # spike_mailbox 构建输出
+│   ├── spike/             # Spike 构建缓存
 │   ├── spike-install/     # Spike 安装目录
-│   └── top/               # top wrapper 构建输出
+│   └── log/               # 测试日志输出
 ├── docs/                   # 项目文档
 │   ├── insn-decode.jpg     # 指令解码图示
 │   ├── insn.jpg            # 指令图示
+│   ├── rvv_mailbox_dev.md  # Mailbox 设备设计文档
+│   ├── rvv-custom-csr.md   # 自定义 CSR 设计文档
+│   ├── rvv-custom-csr.png  # CSR 架构图
 │   └── spike_mailbox.README.md # Mailbox 功能说明
 ├── riscv-isa-sim/          # Spike 子模块 (RISC-V ISA 模拟器)
 ├── src/                    # 源代码目录
@@ -58,7 +65,6 @@
 │   │   ├── Makefile        # 构建配置
 │   │   └── README.md       # 详细使用说明
 │   ├── top/                # 静态链接 Spike 集成 + AI 扩展
-│   │   ├── build/          # 构建输出目录
 │   │   ├── custom/         # 自定义 RISC-V 扩展算法实现
 │   │   │   ├── config.h    # 配置文件
 │   │   │   ├── util.c/h    # 工具函数
@@ -68,7 +74,6 @@
 │   │   │   │   ├── MxFp8ActQuant.cpp/hpp # MXFP8 量化核心
 │   │   │   │   └── SoftmaxCore.cpp/hpp # Softmax 计算核心
 │   │   │   ├── gemm/       # GEMM 运算实现
-│   │   │   ├── log/        # 测试日志输出
 │   │   │   └── script/     # 数据处理脚本
 │   │   ├── extensions/     # 自定义扩展实现
 │   │   │   ├── BF16.cpp/hpp # BFloat16 处理单元
@@ -76,6 +81,7 @@
 │   │   │   ├── MxFp8ActQuant.cpp/hpp # MXFP8 量化核心
 │   │   │   ├── SoftmaxCore.cpp/hpp # Softmax 计算核心
 │   │   │   ├── decode_macros.h
+│   │   │   ├── extension.h
 │   │   │   ├── insn_macros.h
 │   │   │   ├── mailbox.cc/h    # Mailbox 设备实现
 │   │   │   ├── primitiveTypes.h
@@ -87,11 +93,10 @@
 │   │   │   └── xperiv.cc   # 向量扩展（加法、乘法及 AI 指令）
 │   │   ├── firmware/       # 测试固件
 │   │   │   ├── common/     # 通用固件代码
-│   │   │   ├── fuse/       # Fuse 固件（Mailbox 通信测试）
+│   │   │   ├── fuse/       # Fuse 固件（Mailbox 通信 + 指令测试）
 │   │   │   │   ├── Makefile      # 构建配置
 │   │   │   │   ├── README.md     # 说明文档
-│   │   │   │   ├── mailbox.c/h   # Mailbox 实现
-│   │   │   │   ├── main.c        # 主程序
+│   │   │   │   ├── main.c        # 主程序（Mailbox 命令处理）
 │   │   │   │   └── test_insn.c   # 指令测试
 │   │   │   ├── insn/       # 指令测试固件
 │   │   │   │   ├── main.c  # 测试程序（包含 exp/softmax/quant 测试）
@@ -143,7 +148,7 @@ git submodule update --init --recursive
 source set-env.sh
 
 # 注意：set-env.sh 中包含 module load 命令，仅在支持 module 的环境中使用
-# 若不可用，请手动设置 RISCV_PATH 等环境变量
+# 若不可用，请手动设置 RISCV_TOOLCHAIN 等环境变量
 ```
 
 ### 3. 构建项目
@@ -207,8 +212,8 @@ make              # 构建静态链接的 top-main
 make run-build    # 使用 build/ 目录中的文件运行测试（生成 spike.log）
 
 # 直接运行测试程序
-./build/top/top-main --isa=rv64imafdcv_zvl512b_zicsr_xperia_xperiv \
-    -l --log=build/spike.log --log-commits \
+./build/insn/spike_insn --isa=rv64imafdcv_zvl512b_zicsr_xperia_xperiv \
+    -l --log=build/insn/spike.log --log-commits \
     --instructions=80000 build/firmware/insn/firmware.elf
 ```
 
@@ -252,8 +257,8 @@ cd src/top
 make clean
 make spike_build
 make
-./build/top-main --isa=rv64imafdcv_zvl512b_zicsr_xperia_xperiv \
-    -l --log=build/spike.log --log-commits \
+./build/insn/spike_insn --isa=rv64imafdcv_zvl512b_zicsr_xperia_xperiv \
+    -l --log=build/insn/spike.log --log-commits \
     --instructions=80000 build/firmware/insn/firmware.elf
 
 # 使用 RISC-V 工具链编译固件
@@ -282,9 +287,10 @@ make all
 |------|------|
 | `bash build_all.sh` | 构建所有组件 |
 | `bash build_all.sh --all` | 构建所有组件并运行所有测试 |
-| `bash build_all.sh --run-tests` | 构建并运行所有测试 |
+| `bash build_all.sh --run-tests` | 构建并运行所有测试（insn + mailbox + fuse） |
 | `bash build_all.sh --run-tests insn` | 仅构建并运行指令测试 |
 | `bash build_all.sh --run-tests mailbox` | 仅构建并运行 Mailbox 测试 |
+| `bash build_all.sh --run-tests fuse` | 仅构建并运行 Fuse 测试 |
 | `bash build_all.sh --clean` | 清理构建目录 |
 | `bash build_all.sh --spike` | 仅构建 Spike |
 | `bash build_all.sh --firmware insn\|mailbox\|fuse\|all` | 构建指定类型的固件 |
@@ -300,10 +306,12 @@ Spike 作为子模块位于 `riscv-isa-sim/` 目录。构建过程会自动配�
 
 关键环境变量（通过 `set-env.sh` 设置）：
 
+- `RISCV_TOOLCHAIN`: RISC-V 工具链路径
 - `SPIKE_INSTALL_DIR`: Spike 安装目录
 - `SPIKE_BIN_DIR`: Spike 二进制路径
 - `SPIKE_LIB_DIR`: Spike 库路径
 - `SPIKE_INC_DIR`: Spike 包含路径
+- `SPIKE_SOURCE_DIR`: Spike 源码路径
 - `PATH`: 添加 Spike 二进制路径
 - `LD_LIBRARY_PATH`: 添加 Spike 库路径
 - `module load riscv-toolchain/master-v20251230`: 加载 RISC-V 工具链模块（环境依赖）
@@ -410,6 +418,33 @@ bash build_all.sh --top mailbox
 bash build_all.sh --all
 ```
 
+### 输出文件结构
+
+```
+build/
+├── firmware/
+│   ├── insn/
+│   │   └── firmware.elf      # 指令测试固件
+│   ├── mailbox/
+│   │   └── firmware.elf      # Mailbox 通信固件
+│   └── fuse/
+│       ├── firmware.elf      # Fuse 固件
+│       ├── firmware.bin
+│       └── firmware.dump
+├── insn/
+│   ├── spike_insn            # 指令测试可执行文件
+│   └── spike.log             # 执行日志
+├── mailbox/
+│   ├── spike_mailbox         # Mailbox 测试可执行文件
+│   ├── spike.log             # 执行日志
+│   └── firmware.elf          # Mailbox 固件
+└── log/
+    ├── info_insn.log         # insn 测试输出
+    ├── info_mailbox.log      # mailbox 测试输出
+    ├── info_fuse.log         # fuse 测试输出
+    └── info_fuse-debug.log   # fuse 调试输出
+```
+
 ## 自定义扩展说明
 
 ### 现有扩展
@@ -440,23 +475,60 @@ bash build_all.sh --all
 
 ### Mailbox 设备扩展
 
-Mailbox 设备提供主机与固件之间的通信机制：
+Mailbox 设备提供主机与固件之间的通信机制（基于内存映射 I/O）：
 
-- **寄存器映射**：
-  - `MAILBOX_STATUS_OFFSET (0x00)`: 状态寄存器 (READY, BUSY, ERROR)
-  - `MAILBOX_COMMAND_OFFSET (0x04)`: 命令寄存器
-  - `MAILBOX_DATA_ADDR_OFFSET (0x08)`: 数据地址寄存器 (64位)
-  - `MAILBOX_DATA_SIZE_OFFSET (0x10)`: 数据大小寄存器
-  - `MAILBOX_VECTOR_CONFIG_OFFSET (0x18)`: 向量配置寄存器 (64位)
-  - `MAILBOX_RESPONSE_OFFSET (0x14)`: 响应寄存器
+**寄存器映射（MMIO）：**
 
-- **支持的命令**：
-  - `MAILBOX_CMD_HELLO (0x00000001)`: 测试命令
-  - `MAILBOX_CMD_HI (0x00000002)`: 简单响应命令
-  - `MAILBOX_CMD_VECTOR_LOAD (0x00000010)`: 向量加载命令
-  - `MAILBOX_CMD_VECTOR_STORE (0x00000011)`: 向量存储命令
-  - `MAILBOX_CMD_VECTOR_COMPUTE (0x00000012)`: 向量计算命令
-  - `MAILBOX_CMD_SOFTMAX (0x00000020)`: Softmax 计算命令
+| 地址偏移 | 寄存器名称 | 位宽 | 功能描述 |
+|---------|-----------|------|---------|
+| 0x0000 | MAILBOX_STATUS | 32位 | 状态寄存器 (READY, BUSY, ERROR) |
+| 0x0004 | MAILBOX_COMMAND | 32位 | 命令寄存器 |
+| 0x000C | MAILBOX_RESPONSE | 32位 | 响应寄存器 |
+| 0x0020 | MAILBOX_DATA0 | 64位 | 数据寄存器 0 |
+| 0x0028 | MAILBOX_DATA1 | 64位 | 数据寄存器 1 |
+| 0x0030 | MAILBOX_DATA2 | 64位 | 数据寄存器 2 |
+| 0x0038 | MAILBOX_DATA3 | 64位 | 数据寄存器 3 |
+
+**支持的命令：**
+
+| 命令值 | 名称 | 功能描述 |
+|--------|------|---------|
+| 0x00000001 | MAILBOX_CMD_HELLO | 测试命令 |
+| 0x00000002 | MAILBOX_CMD_HI | 简单响应命令 |
+| 0x00000010 | MAILBOX_CMD_VECTOR_LOAD | 向量加载命令 |
+| 0x00000011 | MAILBOX_CMD_VECTOR_STORE | 向量存储命令 |
+| 0x00000012 | MAILBOX_CMD_VECTOR_COMPUTE | 向量计算命令 |
+| 0x00000020 | MAILBOX_CMD_SOFTMAX | Softmax 计算命令 |
+| 0x00000021 | MAILBOX_CMD_EXP | EXP 计算命令 |
+| 0x00000022 | MAILBOX_CMD_QUANT | QUANT 量化命令 |
+
+**状态位：**
+
+| 位 | 名称 | 功能描述 |
+|----|------|---------|
+| [0] | READY | 设备就绪 |
+| [1] | BUSY | 设备繁忙 |
+| [2] | ERROR | 发生错误 |
+
+### RVV 自定义 CSR 设计
+
+项目正在开发自定义 CSR 寄存器，用于支持 Mailbox、Barrier Event (BO) 和 Synchronization Event (SE) 等高级同步机制。
+
+**CSR 寄存器映射：**
+
+| CSR 地址 | 通道 | 寄存器名称 | 位宽 | 功能描述 |
+|---------|------|-----------|------|---------|
+| 0xF20 | Mail | MAIL_DATA0 | 64bit | Mail 数据寄存器 0 |
+| 0xF21 | Mail | MAIL_DATA1 | 64bit | Mail 数据寄存器 1 |
+| 0xF22 | Mail | MAIL_DATA2 | 64bit | Mail 数据寄存器 2 |
+| 0xF23 | Mail | MAIL_DATA3 | 64bit | Mail 数据寄存器 3 |
+| 0xF24 | Mail | MAIL_VALID | 1bit | Mail 有效状态标志 |
+| 0xF25 | Bo done | BO_DONE | 11bit | 完成信号（5bit wg_index + 6bit bar_index） |
+| 0xF26 | Se up | SE_UP | 11bit | 更新信号（5bit wg_index + 6bit bar_index） |
+| 0xF27 | Se query | SE_QUERY_LOCK | 11bit | 查询锁信号（5bit wg_index + 6bit bar_index） |
+| 0xF28 | Se query | SE_QUERY_COUNT | - | 查询计数寄存器 |
+
+详细设计请参考 `docs/rvv-custom-csr.md`。
 
 ### 扩展开发
 
@@ -588,19 +660,21 @@ Mailbox 设备提供主机与固件之间的通信机制：
 - EXP 向量指数运算扩展 (`exp`)
 - SOFTMAX 向量 Softmax 运算扩展 (`softmax`)
 - QUANT 向量量化扩展 (`quant`)
-- Mailbox 通信框架
-- Fuse 固件 Mailbox 通信测试
+- Mailbox 通信框架（支持新 DATA0-3 接口）
+- Fuse 固件 Mailbox 通信测试（支持 exp/quant/softmax）
 
 🔧 **已修复的问题**:
 - EXP/softmax/quant 指令的 commit log 显示问题 - 已通过改进扩展实现修复
 - 提升了 LMUL (1/2/4/8) 不同配置下的测试覆盖
 - Mailbox 通信稳定性问题
 - 构建系统整合（统一使用 build_all.sh）
+- Mailbox 寄存器映射更新（使用 DATA0-3 替代 DATA_ADDR/DATA_SIZE/VECTOR_CONFIG）
 
 📋 **待实现功能** (TODO):
-- [ ] Mailbox 的 cmd 请求添加 exp / quant 支持
-- [ ] 在 firmware/fuse 中添加 exp / quant 测试
-- [ ] 更新构建环境并测试，注意不破坏之前的 case
+- [ ] 添加自定义 CSR 支持（读写访问）
+- [ ] 使用固件测试自定义 CSR 访问
+- [ ] 集成 Barrier Event (BO) 完成信号
+- [ ] 集成 Synchronization Event (SE) 查询/更新机制
 
 ### 运行测试
 
@@ -617,8 +691,11 @@ bash build_all.sh --run-tests mailbox
 # 运行所有测试（包括 Fuse）
 bash build_all.sh --run-tests
 
+# 运行 Fuse 测试
+bash build_all.sh --run-tests fuse
+
 # 查看测试日志
-cat build/insn/spike.log
+cat build/log/info_insn.log
 
 # 使用快捷脚本运行 Fuse 测试
 bash run-fuse.sh
@@ -638,11 +715,12 @@ bash build_all.sh -d --debug-fuse
 5. **错误处理**: 报告测试失败并传递错误代码
 6. **成功报告**: 通过 `tohost` 机制报告测试通过
 
-Fuse 测试程序 (`src/top/firmware/fuse/test_insn.c`) 包含：
+Fuse 测试程序 (`src/top/firmware/fuse/main.c`) 包含：
 
 1. **Mailbox 通信**: 使用 Mailbox 框架进行命令处理
-2. **指令测试**: 测试 exp、softmax、quant 等自定义指令
-3. **结果验证**: 验证指令执行结果
+2. **命令分发**: 支持 HELLO、HI、VECTOR_LOAD、VECTOR_STORE、VECTOR_COMPUTE、SOFTMAX、EXP、QUANT 等命令
+3. **指令测试**: 先运行 test_insn() 执行指令测试
+4. **主循环**: 轮询 Mailbox 状态并处理命令
 
 ### LMUL 测试覆盖
 
@@ -689,15 +767,16 @@ Fuse 测试程序 (`src/top/firmware/fuse/test_insn.c`) 包含：
    - 检查固件是否正确构建：`ls build/firmware/mailbox/firmware.elf`
    - 验证 Mailbox 包装器是否正确构建：`ls build/mailbox/spike_mailbox`
    - 查看通信日志：`cat build/mailbox/spike.log`
+   - 检查 Mailbox 寄存器映射是否正确
 
 7. **Fuse 测试失败**
    - 检查 Fuse 固件是否构建：`ls build/firmware/fuse/firmware.elf`
    - 验证 spike_mailbox 是否包含扩展：`ls build/mailbox/spike_mailbox`
-   - 查看 Fuse 日志：`cat build/mailbox/fuse.log`
+   - 查看 Fuse 日志：`cat build/log/info_fuse.log`
    - 使用调试模式运行：`bash build_all.sh -d --debug-fuse`
 
 8. **module load 命令不可用**
-   - 手动设置 RISC-V 工具链路径：`export RISCV_PATH=/path/to/riscv/toolchain`
+   - 手动设置 RISC-V 工具链路径：`export RISCV_TOOLCHAIN=/path/to/riscv/toolchain`
    - 更新 `set-env.sh` 文件，注释掉 `module load` 行
 
 ### 环境检查
@@ -725,6 +804,9 @@ ls -la build/
 ls build/firmware/insn/    # 指令测试固件
 ls build/firmware/mailbox/ # Mailbox 固件
 ls build/firmware/fuse/    # Fuse 固件
+
+# 检查日志
+ls -la build/log/
 ```
 
 ## 项目状态
@@ -747,10 +829,14 @@ ls build/firmware/fuse/    # Fuse 固件
 - 新增 Fuse 固件测试
 - 改进固件构建系统（使用 generic.mk）
 - 添加 --firmware 和 --top 选项
+- 更新 Mailbox 寄存器映射（使用 DATA0-3）
+- 添加 exp/quant 命令支持
+- 添加自定义 CSR 设计文档
 
-📋 **进行中的工作**:
-- Mailbox 的 cmd 请求添加 exp / quant 支持
-- 在 firmware/fuse 中添加 exp / quant 测试
+📋 **当前开发中**:
+- 自定义 CSR 寄存器支持（需要添加 CSR 读写功能）
+- 使用固件测试自定义 CSR 访问
+- 集成 Barrier Event (BO) 和 Synchronization Event (SE) 机制
 
 **注意**: 避免直接修改 `riscv-isa-sim/` 子模块中的代码，应通过外部层级和编译系统扩展功能。`src/top/` 目录展示了如何在不修改 Spike 源代码的情况下实现静态链接集成。
 
@@ -774,6 +860,8 @@ ls build/firmware/fuse/    # Fuse 固件
 14. **固件 printf 支持**: 成功集成 printf 功能到固件中
 15. **run-fuse.sh 脚本**: 提供 Fuse 测试的快捷运行方式
 16. **通用固件构建**: 添加 generic.mk 模板统一固件构建配置
+17. **Mailbox 寄存器更新**: 更新为使用 DATA0-3 寄存器接口
+18. **自定义 CSR 设计**: 添加 rvv-custom-csr.md 文档
 
 ### 修复改进
 
@@ -785,6 +873,7 @@ ls build/firmware/fuse/    # Fuse 固件
 6. **Mailbox 稳定性**: 修复了 Mailbox 通信中的问题
 7. **构建系统**: 统一使用 build_all.sh 管理所有构建
 8. **固件类型**: 分离 insn/mailbox/fuse 固件类型
+9. **Mailbox 接口**: 更新为使用 DATA0-3 新接口
 
 ### 使用建议
 
@@ -794,13 +883,14 @@ ls build/firmware/fuse/    # Fuse 固件
 - 扩展开发时，确保指令编码不与现有指令冲突（使用 CUSTOM0-CUSTOM3 操作码空间）
 - AI 指令参考 `src/top/custom/riscv/` 中的算法实现
 - Mailbox 通信测试使用 `firmware/fuse/` 目录
+- 自定义 CSR 开发参考 `docs/rvv-custom-csr.md`
 
 ### 已知限制
 
 - 当前测试固件使用固定内存地址，可能不适用于所有内存布局
 - SystemC 集成需要额外的 SystemC 库安装
 - Mailbox 通信目前仅支持特定的命令集
-- Fuse 固件中 exp/quant 命令待实现
+- 自定义 CSR 功能正在开发中
 
 ## 贡献指南
 
@@ -814,6 +904,7 @@ ls build/firmware/fuse/    # Fuse 固件
 8. 添加 Mailbox 功能时，更新 `spike_mailbox.README.md` 文档
 9. 添加新固件类型时，更新 `build_all.sh` 中的构建逻辑
 10. 更新 TODO 列表以跟踪待完成工作
+11. 添加自定义 CSR 功能时，更新 `docs/rvv-custom-csr.md` 文档
 
 ## 许可证
 

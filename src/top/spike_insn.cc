@@ -21,6 +21,7 @@
 #include <cinttypes>
 #include <sstream>
 #include "../VERSION"
+#include "extensions/custom_csr.h"
 
 static void help(int exit_code = 1)
 {
@@ -551,6 +552,14 @@ int main(int argc, char** argv)
   s.set_debug(debug);
   s.configure_log(log, log_commits);
   s.set_histogram(histogram);
+
+  // 注册自定义 RVV CSR (0xF20 - 0xF28)
+  for (size_t i = 0; i < cfg.nprocs(); i++) {
+    processor_t* proc = s.get_core(i);
+    if (proc) {
+      register_custom_csrs(proc);
+    }
+  }
 
   auto return_code = s.run();
 

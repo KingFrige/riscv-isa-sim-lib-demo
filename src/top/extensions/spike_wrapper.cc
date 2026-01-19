@@ -13,6 +13,7 @@
 #include "cfg.h"
 #include "mmu.h"
 #include "mailbox.h"
+#include "custom_csr.h"
 #include "devices.h"
 #include "abstract_device.h"
 
@@ -406,7 +407,19 @@ private:
             
             // 配置日志（使用从参数中解析的设置）
             sim->configure_log(enable_log, enable_commitlog);
-            
+
+            // 注册自定义 RVV CSR (0xF20 - 0xF28)
+            for (auto& hart : sim->get_harts()) {
+                processor_t* proc = hart.second;
+                if (proc) {
+                    register_custom_csrs(proc);
+                    if (debug_) {
+                        std::cout << "[SpikeWrapper] Custom CSRs registered for hart "
+                                  << proc->get_id() << std::endl;
+                    }
+                }
+            }
+
             if (debug_) {
                 std::cout << "[SpikeWrapper] Spike instance created successfully" << std::endl;
                 std::cout << "[SpikeWrapper] Log settings: enable_log=" << enable_log 

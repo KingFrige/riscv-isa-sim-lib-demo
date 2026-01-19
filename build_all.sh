@@ -373,6 +373,77 @@ build_fuse_firmware() {
     log_success "Fuse firmware built successfully"
 }
 
+# Build CSR firmware
+build_csr_firmware() {
+    log_info "Building CSR firmware..."
+    
+    # Create build directory
+    mkdir -p "$BUILD_DIR/csr/firmware"
+    
+    # Set required environment variable
+    export RISCV_PATH="$RISCV_TOOLCHAIN"
+    
+    # Change to CSR firmware directory and build
+    cd "$PROJECT_ROOT/src/top/firmware/csr"
+    
+    # Set RISCV_PREFIX for the toolchain
+    export RISCV_PREFIX="$RISCV_TOOLCHAIN/bin/riscv64-unknown-elf-"
+    
+    # Build the CSR firmware
+    make RISCV_PREFIX="$RISCV_PREFIX" BUILD_DIR="$BUILD_DIR/csr/firmware" all
+    
+    # Verify firmware was built
+    if [ -f "$BUILD_DIR/csr/firmware/firmware.elf" ]; then
+        log_success "CSR firmware built to $BUILD_DIR/csr/firmware/firmware.elf"
+    else
+        log_error "CSR firmware not found"
+        return 1
+    fi
+    
+    # Return to project root
+    cd "$PROJECT_ROOT"
+    log_success "CSR firmware built successfully"
+}
+
+# Run CSR tests
+run_csr_tests() {
+    log_info "Running CSR tests..."
+
+    # 确保日志目录存在
+    mkdir -p "$LOG_DIR"
+    
+    # Set environment variables
+    export SPIKE_INSTALL_DIR="$PROJECT_ROOT/riscv-isa-sim/install"
+    export SPIKE_SOURCE_DIR="$SPIKE_SRC_DIR"
+    export RISCV_PATH="$RISCV_TOOLCHAIN"
+
+    local FIRMWARE_ELF="$BUILD_DIR/csr/firmware/firmware.elf"
+    local LOG_FILE="$LOG_DIR/info_csr.log"
+
+    # Verify firmware exists
+    if [ ! -f "$FIRMWARE_ELF" ]; then
+        log_error "CSR firmware not found at $FIRMWARE_ELF"
+        log_error "Please build CSR firmware first: bash build_all.sh --firmware csr"
+        return 1
+    fi
+
+    # Run CSR test using the insn test wrapper (same ISA support)
+    local SPIKE_INSN="$BUILD_DIR/insn/spike_insn"
+    
+    if [ ! -f "$SPIKE_INSN" ]; then
+        log_error "spike_insn not found at $SPIKE_INSN"
+        log_error "Please build top wrapper first: bash build_all.sh -t insn"
+        return 1
+    fi
+
+    log_info "Executing CSR test..."
+    $SPIKE_INSN --isa=rv64gcv_zvl512b_zicsr_xperia_xperiv \
+        -l --log="$LOG_DIR/spike_csr.log" --log-commits \
+        --instructions=100000 "$FIRMWARE_ELF" 2>&1 | tee -a "$LOG_FILE"
+    
+    log_success "CSR tests completed. Log saved to $LOG_FILE"
+}
+
 # Run fuse tests
 run_fuse_tests() {
     log_info "Running fuse tests..."
@@ -469,9 +540,9 @@ Options:
   -h, --help              Show this help message
   -c, --clean             Clean build directories before building
   -s, --spike             Build only Spike
-  -f, --firmware [TYPE]   Build firmware (TYPE: insn|mailbox|fuse|all, default: all)
+  -f, --firmware [TYPE]   Build firmware (TYPE: insn|mailbox|fuse|csr|all, default: all)
   -t, --top [TYPE]        Build top wrappers (TYPE: insn|mailbox|all, default: all)
-  -r, --run-tests [TYPE]  Build and run tests (TYPE: insn|mailbox|fuse|all, default: all)
+  -r, --run-tests [TYPE]  Build and run tests (TYPE: insn|mailbox|fuse|csr|all, default: all)
   -d, --debug-fuse        Run fuse debug directly (skip all builds)
   --all                   Build everything and run all tests (insn + mailbox + fuse)
   --riscv PATH            Set RISC-V toolchain path (default: /opt/riscv)
@@ -492,10 +563,12 @@ Examples:
   $0 -t                   # Build all top wrappers (spike_insn + spike_mailbox)
   $0 -t insn              # Build only spike_insn
   $0 -t mailbox           # Build only spike_mailbox
-  $0 -r                   # Build and run all tests (insn + mailbox + fuse)
+  $0 -r                   # Build and run all tests (insn + mailbox + fuse + csr)
   $0 -r insn              # Build and run spike_insn tests only
   $0 -r mailbox           # Build and run mailbox tests only
   $0 -r fuse              # Build and run fuse tests only
+  $0 -r csr               # Build and run CSR tests only
+  $0 --firmware csr       # Build only CSR firmware
   $0 --all                # Build everything and run all tests
   $0 -d                   # Run fuse debug directly (skip builds)
 
@@ -513,6 +586,7 @@ parse_args() {
     local run_insn_tests_flag=0
     local run_mailbox_tests_flag=0
     local run_fuse_tests_flag=0
+    local run_csr_tests_flag=0
     local run_fuse_debug_flag=0
 
     if [ $# -lt 1 ]; then
@@ -567,15 +641,19 @@ parse_args() {
                 build_mailbox_test_flag=1
                 run_insn_tests_flag=1
                 run_mailbox_tests_flag=1
-                # Check for optional type argument (insn|mailbox|fuse|all)
+                # Check for optional type argument (insn|mailbox|fuse|csr|all)
                 if [[ -n "$2" && "$2" != -* ]]; then
                     case "$2" in
                         insn)
                             run_mailbox_tests_flag=0
                             build_mailbox_test_flag=0
+                            run_fuse_tests_flag=0
+                            run_csr_tests_flag=0
                             ;;
                         mailbox)
                             run_insn_tests_flag=0
+                            run_fuse_tests_flag=0
+                            run_csr_tests_flag=0
                             ;;
                         fuse)
                             # 仅运行 fuse 测试
@@ -584,16 +662,26 @@ parse_args() {
                             run_mailbox_tests_flag=0
                             build_mailbox_test_flag=0
                             run_fuse_tests_flag=1
+                            run_csr_tests_flag=0
+                            ;;
+                        csr)
+                            # 仅运行 CSR 测试
+                            run_insn_tests_flag=0
+                            run_mailbox_tests_flag=0
+                            run_fuse_tests_flag=0
+                            run_csr_tests_flag=1
                             ;;
                         all)
                             # 默认行为 - 运行所有测试
                             run_fuse_tests_flag=1
+                            run_csr_tests_flag=1
                             ;;
                     esac
                     shift
                 else
                     # 无参数时默认运行所有测试
                     run_fuse_tests_flag=1
+                    run_csr_tests_flag=1
                 fi
                 shift
                 ;;
@@ -611,7 +699,7 @@ parse_args() {
                 shift
                 ;;
             --all)
-                # Build everything and run tests (insn + mailbox + fuse)
+                # Build everything and run tests (insn + mailbox + fuse + csr)
                 build_spike_flag=1
                 build_firmware_flag="all"
                 build_top_flag=1
@@ -619,6 +707,7 @@ parse_args() {
                 run_insn_tests_flag=1
                 run_mailbox_tests_flag=1
                 run_fuse_tests_flag=1
+                run_csr_tests_flag=1
                 run_fuse_debug_flag=0  # Debug mode is separate
                 shift
                 ;;
@@ -652,6 +741,7 @@ parse_args() {
             build_firmware
             build_mailbox_firmware
             build_fuse_firmware
+            build_csr_firmware
             ;;
         insn)
             build_firmware
@@ -661,6 +751,9 @@ parse_args() {
             ;;
         fuse)
             build_fuse_firmware
+            ;;
+        csr)
+            build_csr_firmware
             ;;
     esac
     
@@ -685,6 +778,11 @@ parse_args() {
     # Run fuse tests if requested
     if [ $run_fuse_tests_flag -eq 1 ]; then
         run_fuse_tests
+    fi
+
+    # Run CSR tests if requested
+    if [ $run_csr_tests_flag -eq 1 ]; then
+        run_csr_tests
     fi
 
     # Run fuse debug if requested
@@ -717,6 +815,7 @@ main() {
     log_info "  - info_insn.log      (insn test output)"
     log_info "  - info_mailbox.log   (mailbox test output)"
     log_info "  - info_fuse.log      (fuse test output)"
+    log_info "  - info_csr.log       (CSR test output)"
     log_info "  - info_fuse-debug.log (fuse debug output)"
 }
 
