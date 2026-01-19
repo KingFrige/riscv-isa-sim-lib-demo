@@ -6,7 +6,7 @@
 // Mailbox 寄存器定义
 #define MAILBOX_BASE          0x60000000
 
-// 寄存器偏移 (按 rvv_mailbox.md 设计)
+// 寄存器偏移 (按 rvv_mailbox_dev.md 设计)
 // 地址 0x0000: STATUS (32位)
 // 地址 0x0008: COMMAND (32位)
 // 地址 0x000C: RESPONSE (32位)

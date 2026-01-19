@@ -17,7 +17,7 @@ public:
     // 寄存器偏移定义
     static constexpr reg_t MAILBOX_SIZE = 0x1000;     // 4KB 地址空间
     
-    // 寄存器偏移 (按 rvv_mailbox.md 设计)
+    // 寄存器偏移 (按 rvv_mailbox_dev.md 设计)
     // 地址 0x0000: STATUS (32位)
     // 地址 0x0008: COMMAND (32位)
     // 地址 0x000C: RESPONSE (32位)

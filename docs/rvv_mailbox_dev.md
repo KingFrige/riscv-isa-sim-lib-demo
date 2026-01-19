@@ -1,4 +1,4 @@
-# RVV Mailbox 设计文档
+# RVV Mailbox device 设计文档
 
 ## 概述
 RVV Mailbox 是一个用于 RISC-V 向量扩展（RVV）的通信机制，允许主机（host）与 Spike 模拟器中的固件进行通信。该机制主要用于：

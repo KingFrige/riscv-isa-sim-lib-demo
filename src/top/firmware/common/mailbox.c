@@ -1,5 +1,5 @@
 /* mailbox.c - Mailbox device access functions
- * 按 rvv_mailbox.md 设计
+ * 按 rvv_mailbox_dev.md 设计
  * 地址 0x0000: STATUS (32位)
  * 地址 0x0008: COMMAND (32位)
  * 地址 0x000C: RESPONSE (32位)
@@ -7,7 +7,7 @@
  */
 #include "mailbox.h"
 
-// Mailbox 设备状态 (按 rvv_mailbox.md 设计)
+// Mailbox 设备状态 (按 rvv_mailbox_dev.md 设计)
 typedef struct {
     volatile uint32_t status;              // 0x0000
     volatile uint8_t  reserved0[4];        // padding: 0x0004-0x0007

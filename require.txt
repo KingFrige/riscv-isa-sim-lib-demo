@@ -33,12 +33,12 @@
 1. [x] mailbox的cmd请求添加 exp / quant
 1. [x] 在firmware/fuse中添加相关测试
 1. [x] 更新构建环境并测试, 注意不破坏之前的case
+1. [x] 现在需要修改mailbox的地址映射，以及修改部分寄存器实现，设计到底层实现已经firmware中的使用
+1. [x] 具体的修改参考 docs/rvv_mailbox_dev.md：
+       - 删除寄存器：MAILBOX_VECTOR_CONFIG / MAILBOX_DATA_ADDR / MAILBOX_DATA_SIZE 
+       - 增加寄存器：MAILBOX_DATA0-3
+       - 更新寄存器映射地址
 
 ## TODO
 
 
-1. 现在需要修改mailbox的地址映射，以及修改部分寄存器实现，设计到底层实现已经firmware中的使用
-1. 具体的修改参考 docs/rvv_mailbox.md ： 
-   - 删除寄存器：MAILBOX_VECTOR_CONFIG / MAILBOX_DATA_ADDR / MAILBOX_DATA_SIZE 
-   - 增加寄存器：MAILBOX_DATA0-3
-   - 更新寄存器映射地址
