@@ -23,6 +23,7 @@ SPIKE_BUILD_DIR="${SPIKE_BUILD_DIR:-$BUILD_DIR/spike}"
 FIRMWARE_BUILD_DIR="${FIRMWARE_BUILD_DIR:-$BUILD_DIR/firmware}"
 TOP_BUILD_DIR="${TOP_BUILD_DIR:-$BUILD_DIR/top}"
 MAILBOX_BUILD_DIR="${MAILBOX_BUILD_DIR:-$BUILD_DIR/mailbox}"
+CSR_BUILD_DIR="${CSR_BUILD_DIR:-$BUILD_DIR/csr}"
 TESTS_BUILD_DIR="${TESTS_BUILD_DIR:-$BUILD_DIR/tests}"
 
 # Colors for output
@@ -405,45 +406,6 @@ build_csr_firmware() {
     log_success "CSR firmware built successfully"
 }
 
-# Run CSR tests
-run_csr_tests() {
-    log_info "Running CSR tests..."
-
-    # 确保日志目录存在
-    mkdir -p "$LOG_DIR"
-    
-    # Set environment variables
-    export SPIKE_INSTALL_DIR="$PROJECT_ROOT/riscv-isa-sim/install"
-    export SPIKE_SOURCE_DIR="$SPIKE_SRC_DIR"
-    export RISCV_PATH="$RISCV_TOOLCHAIN"
-
-    local FIRMWARE_ELF="$BUILD_DIR/csr/firmware/firmware.elf"
-    local LOG_FILE="$LOG_DIR/info_csr.log"
-
-    # Verify firmware exists
-    if [ ! -f "$FIRMWARE_ELF" ]; then
-        log_error "CSR firmware not found at $FIRMWARE_ELF"
-        log_error "Please build CSR firmware first: bash build_all.sh --firmware csr"
-        return 1
-    fi
-
-    # Run CSR test using the insn test wrapper (same ISA support)
-    local SPIKE_INSN="$BUILD_DIR/insn/spike_insn"
-    
-    if [ ! -f "$SPIKE_INSN" ]; then
-        log_error "spike_insn not found at $SPIKE_INSN"
-        log_error "Please build top wrapper first: bash build_all.sh -t insn"
-        return 1
-    fi
-
-    log_info "Executing CSR test..."
-    $SPIKE_INSN --isa=rv64gcv_zvl512b_zicsr_xperia_xperiv \
-        -l --log="$LOG_DIR/spike_csr.log" --log-commits \
-        --instructions=100000 "$FIRMWARE_ELF" 2>&1 | tee -a "$LOG_FILE"
-    
-    log_success "CSR tests completed. Log saved to $LOG_FILE"
-}
-
 # Run fuse tests
 run_fuse_tests() {
     log_info "Running fuse tests..."
@@ -503,6 +465,42 @@ run_fuse_debug() {
     log_success "Fuse debug completed. Log saved to $LOG_FILE"
 }
 
+# Run CSR tests
+run_csr_tests() {
+    log_info "Running CSR tests..."
+
+    # 确保日志目录存在
+    mkdir -p "$LOG_DIR"
+    
+    # Set environment variables
+    export SPIKE_INSTALL_DIR="$PROJECT_ROOT/riscv-isa-sim/install"
+    export SPIKE_SOURCE_DIR="$SPIKE_SRC_DIR"
+    export RISCV_PATH="$RISCV_TOOLCHAIN"
+    export LD_LIBRARY_PATH="$SPIKE_INSTALL_DIR/lib:$LD_LIBRARY_PATH"
+
+    local FIRMWARE_ELF="$BUILD_DIR/csr/firmware/firmware.elf"
+    local SPIKE_CSR="$BUILD_DIR/csr/spike_csr"
+    local LOG_FILE="$LOG_DIR/info_csr.log"
+
+    # Verify files exist
+    if [ ! -f "$SPIKE_CSR" ]; then
+        log_error "spike_csr not found at $SPIKE_CSR"
+        log_error "Please build CSR wrapper first: bash build_all.sh -t csr"
+        return 1
+    fi
+
+    if [ ! -f "$FIRMWARE_ELF" ]; then
+        log_error "CSR firmware not found at $FIRMWARE_ELF"
+        log_error "Please build CSR firmware first: bash build_all.sh -f csr"
+        return 1
+    fi
+
+    log_info "Executing: $SPIKE_CSR $FIRMWARE_ELF --test mail"
+    timeout 15 $SPIKE_CSR "$FIRMWARE_ELF" --test mail 2>&1 | tee -a "$LOG_FILE"
+    
+    log_success "CSR tests completed. Log saved to $LOG_FILE"
+}
+
 
 # Build mailbox test wrapper
 build_mailbox_test() {
@@ -529,6 +527,34 @@ build_mailbox_test() {
     cd "$PROJECT_ROOT"
 }
 
+# Build CSR test wrapper
+build_csr_test() {
+    log_info "Building CSR test wrapper..."
+
+    # Set environment variables for the build
+    export SPIKE_INSTALL_DIR="$PROJECT_ROOT/riscv-isa-sim/install"
+    export SPIKE_SOURCE_DIR="$SPIKE_SRC_DIR"
+    export RISCV_PATH="$RISCV_TOOLCHAIN"
+
+    # Create build directory
+    mkdir -p "$CSR_BUILD_DIR"
+
+    # Build CSR test using Makefile
+    cd "$PROJECT_ROOT/src/top"
+    make build_csr_test BUILD_DIR="$BUILD_DIR"
+
+    # Copy the built executable to the project build directory
+    if [ -f "$BUILD_DIR/csr/spike_csr" ]; then
+        log_success "CSR test wrapper built successfully"
+    else
+        log_error "CSR test wrapper executable not found"
+        return 1
+    fi
+
+    # Return to project root
+    cd "$PROJECT_ROOT"
+}
+
 # Show help
 show_help() {
     cat << EOF
@@ -541,7 +567,7 @@ Options:
   -c, --clean             Clean build directories before building
   -s, --spike             Build only Spike
   -f, --firmware [TYPE]   Build firmware (TYPE: insn|mailbox|fuse|csr|all, default: all)
-  -t, --top [TYPE]        Build top wrappers (TYPE: insn|mailbox|all, default: all)
+  -t, --top [TYPE]        Build top wrappers (TYPE: insn|mailbox|csr|all, default: all)
   -r, --run-tests [TYPE]  Build and run tests (TYPE: insn|mailbox|fuse|csr|all, default: all)
   -d, --debug-fuse        Run fuse debug directly (skip all builds)
   --all                   Build everything and run all tests (insn + mailbox + fuse)
@@ -560,9 +586,10 @@ Examples:
   $0                      # Build everything and run all tests
   $0 --clean              # Clean and build everything
   $0 --spike --firmware   # Build only Spike and firmware
-  $0 -t                   # Build all top wrappers (spike_insn + spike_mailbox)
+  $0 -t                   # Build all top wrappers (spike_insn + spike_mailbox + spike_csr)
   $0 -t insn              # Build only spike_insn
   $0 -t mailbox           # Build only spike_mailbox
+  $0 -t csr               # Build only spike_csr
   $0 -r                   # Build and run all tests (insn + mailbox + fuse + csr)
   $0 -r insn              # Build and run spike_insn tests only
   $0 -r mailbox           # Build and run mailbox tests only
@@ -583,6 +610,7 @@ parse_args() {
     local build_firmware_flag="all"
     local build_top_flag=0
     local build_mailbox_test_flag=0
+    local build_csr_test_flag=0
     local run_insn_tests_flag=0
     local run_mailbox_tests_flag=0
     local run_fuse_tests_flag=0
@@ -614,20 +642,27 @@ parse_args() {
                 shift
                 ;;
             -t|--top)
-                # Default: build all top wrappers (spike_insn + spike_mailbox)
+                # Default: build all top wrappers (spike_insn + spike_mailbox + spike_csr)
                 build_top_flag=1
                 build_mailbox_test_flag=1
-                # Check for optional type argument (insn|mailbox|all)
+                build_csr_test_flag=1
+                # Check for optional type argument (insn|mailbox|csr|all)
                 if [[ -n "$2" && "$2" != -* ]]; then
                     case "$2" in
                         insn)
                             build_mailbox_test_flag=0
+                            build_csr_test_flag=0
                             ;;
                         mailbox)
                             build_top_flag=0
+                            build_csr_test_flag=0
+                            ;;
+                        csr)
+                            build_top_flag=0
+                            build_mailbox_test_flag=0
                             ;;
                         all)
-                            # Default behavior - both
+                            # Default behavior - all
                             ;;
                     esac
                     shift
@@ -765,12 +800,15 @@ parse_args() {
         build_mailbox_test
     fi
     
+    if [ $build_csr_test_flag -eq 1 ]; then
+        build_csr_test
+    fi
+    
     # Run tests if requested
     if [ $run_insn_tests_flag -eq 1 ]; then
         run_insn_tests
     fi
 
-    # Run tests if requested
     if [ $run_mailbox_tests_flag -eq 1 ]; then
         run_mailbox_tests
     fi

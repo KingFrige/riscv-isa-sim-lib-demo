@@ -9,10 +9,11 @@ PROJECT_ROOT := $(realpath $(ROOT_DIR)/../..)
 # Directory Configuration (Consistent structure: <type>/)
 # =============================================================================
 
-# Build output directories (unified: insn/ and mailbox/)
+# Build output directories (unified: insn/, mailbox/, csr/)
 BUILD_DIR ?= $(ROOT_DIR)/build
 INSN_BUILD_DIR = $(BUILD_DIR)/insn
 MAILBOX_BUILD_DIR = $(BUILD_DIR)/mailbox
+CSR_BUILD_DIR = $(BUILD_DIR)/csr
 
 # Spike directories
 SPIKE_SOURCE_DIR ?= $(PROJECT_ROOT)/riscv-isa-sim
@@ -52,12 +53,18 @@ SPIKE_MAILBOX_SRC = $(ROOT_DIR)/spike_mailbox.cc
 SPIKE_MAILBOX_OBJ = $(BUILD_DIR)/spike_mailbox.o
 SPIKE_MAILBOX_DEP = $(SPIKE_MAILBOX_OBJ:.o=.d)
 
+# Source files for spike_csr (CSR test)
+SPIKE_CSR_SRC = $(ROOT_DIR)/spike_csr.cc
+SPIKE_CSR_OBJ = $(BUILD_DIR)/spike_csr.o
+SPIKE_CSR_DEP = $(SPIKE_CSR_OBJ:.o=.d)
+
 # =============================================================================
 # Target Executables (Consistent: <type>/<name>)
 # =============================================================================
 
 INSN_TARGET = $(INSN_BUILD_DIR)/spike_insn
 MAILBOX_TARGET = $(MAILBOX_BUILD_DIR)/spike_mailbox
+CSR_TARGET = $(CSR_BUILD_DIR)/spike_csr
 
 # =============================================================================
 # Compiler Configuration
@@ -183,8 +190,16 @@ clean_insn_test:
 MAILBOX_FIRMWARE_DIR = $(ROOT_DIR)/firmware/mailbox
 MAILBOX_FIRMWARE_ELF = $(MAILBOX_BUILD_DIR)/firmware/firmware.elf
 
+CSR_FIRMWARE_DIR = $(ROOT_DIR)/firmware/csr
+CSR_FIRMWARE_ELF = $(CSR_BUILD_DIR)/firmware/firmware.elf
+
 # Link spike_mailbox
 $(MAILBOX_TARGET): $(EXTENSIONS_OBJ) $(SPIKE_MAILBOX_OBJ)
+	@mkdir -p $(dir $@)
+	$(CXX) $(LDFLAGS) -L$(SPIKE_LIB_DIR) -o $@ $^ $(LDLIBS)
+
+# Link spike_csr
+$(CSR_TARGET): $(EXTENSIONS_OBJ) $(SPIKE_CSR_OBJ)
 	@mkdir -p $(dir $@)
 	$(CXX) $(LDFLAGS) -L$(SPIKE_LIB_DIR) -o $@ $^ $(LDLIBS)
 
@@ -194,9 +209,19 @@ build_mailbox_firmware:
 	$(MAKE) -C $(MAILBOX_FIRMWARE_DIR) BUILD_DIR=$(abspath $(MAILBOX_BUILD_DIR)/firmware) \
 		RISCV_PREFIX="$(RISCV_PATH)/bin/riscv64-unknown-elf-"
 
+# Build CSR firmware
+.PHONY: build_csr_firmware
+build_csr_firmware:
+	$(MAKE) -C $(CSR_FIRMWARE_DIR) BUILD_DIR=$(abspath $(CSR_BUILD_DIR)/firmware) \
+		RISCV_PREFIX="$(RISCV_PATH)/bin/riscv64-unknown-elf-"
+
 # Build mailbox test (wrapper + firmware)
 .PHONY: build_mailbox_test
 build_mailbox_test: build_mailbox_firmware $(MAILBOX_TARGET)
+
+# Build CSR test (wrapper + firmware)
+.PHONY: build_csr_test
+build_csr_test: build_csr_firmware $(CSR_TARGET)
 
 # Run mailbox test (optional FIRMWARE_ELF to use external firmware)
 .PHONY: run_mailbox_test
@@ -207,6 +232,15 @@ else
 	$(MAILBOX_TARGET) -l --log=$(LOG_DIR)/spike_fuse.log --log-commits $(FIRMWARE_ELF)
 endif
 
+# Run CSR test (optional FIRMWARE_ELF to use external firmware)
+.PHONY: run_csr_test
+run_csr_test: $(CSR_TARGET)
+ifeq ($(FIRMWARE_ELF),)
+	$(CSR_TARGET) -l --log=$(LOG_DIR)/spike_csr.log --log-commits $(FIRMWARE_ELF)
+else
+	$(CSR_TARGET) -l --log=$(LOG_DIR)/spike_csr.log --log-commits $(FIRMWARE_ELF)
+endif
+
 # Clean mailbox build
 .PHONY: clean_mailbox_test
 clean_mailbox_test:
@@ -214,13 +248,20 @@ clean_mailbox_test:
 	$(RM) $(SPIKE_MAILBOX_OBJ) $(SPIKE_MAILBOX_DEP) $(MAILBOX_TARGET)
 	$(RM) -rf $(MAILBOX_BUILD_DIR)
 
+# Clean CSR build
+.PHONY: clean_csr_test
+clean_csr_test:
+	$(MAKE) -C $(CSR_FIRMWARE_DIR) BUILD_DIR=$(abspath $(CSR_BUILD_DIR)/firmware) clean
+	$(RM) $(SPIKE_CSR_OBJ) $(SPIKE_CSR_DEP) $(CSR_TARGET)
+	$(RM) -rf $(CSR_BUILD_DIR)
+
 # =============================================================================
 # Unified Build Targets
 # =============================================================================
 
 # Build all test wrappers and firmwares
 .PHONY: build_all_tests
-build_all_tests: build_insn_test build_mailbox_test
+build_all_tests: build_insn_test build_mailbox_test build_csr_test
 
 # Run all tests
 .PHONY: run_all_tests

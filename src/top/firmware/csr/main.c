@@ -3,17 +3,7 @@
 #include <stdint.h>
 
 #include "printf.h"
-
-// CSR 地址定义 (与 custom_csr.h 保持一致)
-#define CSR_MAIL_DATA0      0xBC0
-#define CSR_MAIL_DATA1      0xBC1
-#define CSR_MAIL_DATA2      0xBC2
-#define CSR_MAIL_DATA3      0xBC3
-#define CSR_MAIL_VALID      0xBC4
-#define CSR_BO_DONE         0xBC5
-#define CSR_SE_UP           0xBC6
-#define CSR_SE_QUERY_LOCK   0xBC7
-#define CSR_SE_QUERY_COUNT  0xBC8
+#include "../../common/csr_addr.h"
 
 // 错误代码定义
 #define ERR_CSR_READ        0xE1
@@ -428,15 +418,47 @@ void main(void) {
   }
   printf("========================================\n");
 
-  // 循环等待
+  // 循环等待，轮询 Mail 数据
   uint32_t loop_count = 0;
+  uint32_t mail_poll_count = 0;
   printf("[FIRMWARE]: Entering main loop...\n");
 
   while (1) {
     loop_count++;
-    if (loop_count % 1000000 == 0) {
-      printf("[FIRMWARE]: Loop count: %u\n", loop_count);
+    
+    // 每 100000 次循环轮询一次 Mail
+    if (loop_count % 100000 == 0) {
+      mail_poll_count++;
+      
+      // 轮询 MAIL_VALID
+      uint64_t valid = csr_read(CSR_MAIL_VALID);
+      
+      if (valid & 0x1) {
+        // Mail 有效，读取数据
+        printf("[FIRMWARE] Mail valid detected! (poll #%u)\n", mail_poll_count);
+        
+        uint64_t data0 = csr_read(CSR_MAIL_DATA0);
+        uint64_t data1 = csr_read(CSR_MAIL_DATA1);
+        uint64_t data2 = csr_read(CSR_MAIL_DATA2);
+        uint64_t data3 = csr_read(CSR_MAIL_DATA3);
+        
+        // 输出读取的数据
+        printf("[FIRMWARE] Received mail data:\n");
+        printf("[FIRMWARE]   DATA0: 0x%016lx\n", data0);
+        printf("[FIRMWARE]   DATA1: 0x%016lx\n", data1);
+        printf("[FIRMWARE]   DATA2: 0x%016lx\n", data2);
+        printf("[FIRMWARE]   DATA3: 0x%016lx\n", data3);
+        
+        // 清除 valid
+        printf("[FIRMWARE] Clearing MAIL_VALID...\n");
+        csr_write(CSR_MAIL_VALID, 0);
+      }
+      
+      if (loop_count % 1000000 == 0) {
+        printf("[FIRMWARE]: Loop count: %u, Mail polls: %u\n", loop_count, mail_poll_count);
+      }
     }
+    
     delay(100);
   }
 }

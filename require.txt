@@ -38,9 +38,31 @@
        - 删除寄存器：MAILBOX_VECTOR_CONFIG / MAILBOX_DATA_ADDR / MAILBOX_DATA_SIZE 
        - 增加寄存器：MAILBOX_DATA0-3
        - 更新寄存器映射地址
+1. [x] 现在需要给rvv 添加定制寄存器， 文档docs/rvv-custom-csr.md 有具体寄存器的描述
+1. [x] 先添加csr，支持读写，并使用固件去访问测试
+1. [x] riscv-isa-sim 是独立的仓库，分析在不修改这个仓库的基础上，通过对象继承已经编译手段实现csr新增
+1. [x] 现在需要实现类似spike_mailbox.cc的一个top，但是不需要给mailbox测试（在spike_mailbox.cc基础上移除mailbox的测试），
+       需要测试新增的csr，按照 docs/rvv-custom-csr.md : Mail 通道详细说明 来实现数据的注入
+       - 已实现：src/top/spike_csr.cc
+       - 支持测试：Mail 通道、Bo done 通道、Se up 通道、Se query 通道
+       - 构建命令：bash build_all.sh -t csr
+       - 运行命令：bash build_all.sh --run-tests csr
+1. [x] firmware 端需要轮询valid值，如果获取到则读取出data值输出即可
+       - 已实现：src/top/firmware/csr/main.c 中的轮询逻辑
+       - 固件在主循环中每 100000 次循环轮询一次 MAIL_VALID
+       - 当检测到 valid=1 时，读取 DATA0-3 并输出，然后清除 valid
 
 ## TODO
 
-1. 现在需要给rvv 添加定制寄存器， 文档docs/rvv-custom-csr.md 有具体寄存器的描述
-1. 先添加csr，支持读写，并使用固件去访问测试
-1. riscv-isa-sim 是独立的仓库，分析在不修改这个仓库的基础上，通过对象继承已经编译手段实现csr新增
+1. [x] 重构： src/top/common下放置firmware & extensions 公共的csr寄存器地址，同步修改构建依赖，执行已有测试，保证没有被破坏
+       - 已创建：src/top/common/csr_addr.h
+       - 更新了以下文件以使用公共 CSR 地址定义：
+         - src/top/extensions/custom_csr.h
+         - src/top/firmware/csr/main.c
+         - src/top/firmware/csr/mail_poll.c
+         - src/top/spike_csr.cc
+       - 所有测试通过：
+         - CSR 测试：通过
+         - INSN 测试：通过
+         - MAILBOX 测试：通过
+         - FUSE 测试：通过
