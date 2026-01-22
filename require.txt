@@ -51,18 +51,7 @@
        - 已实现：src/top/firmware/csr/main.c 中的轮询逻辑
        - 固件在主循环中每 100000 次循环轮询一次 MAIL_VALID
        - 当检测到 valid=1 时，读取 DATA0-3 并输出，然后清除 valid
-
-## TODO
-
 1. [x] 重构： src/top/common下放置firmware & extensions 公共的csr寄存器地址，同步修改构建依赖，执行已有测试，保证没有被破坏
-       - 已创建：src/top/common/csr_addr.h
-       - 更新了以下文件以使用公共 CSR 地址定义：
-         - src/top/extensions/custom_csr.h
-         - src/top/firmware/csr/main.c
-         - src/top/firmware/csr/mail_poll.c
-         - src/top/spike_csr.cc
-       - 所有测试通过：
-         - CSR 测试：通过
-         - INSN 测试：通过
-         - MAILBOX 测试：通过
-         - FUSE 测试：通过
+1. [x] 理解zmq协议，现在需要将spike_csr.cc使用zmq协议通信， 复制spike_csr.cc，在新的文件实现
+1. [x] spike_csr.cc复制内部分为两个部分，csr功能端接受cmd信息，另一端/测试端发送cmd信息，使用zmq通信，更新构建脚本
+1. [x] 测试，先启动csr功能端进程，再启动测试端发送命令

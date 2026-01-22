@@ -555,6 +555,191 @@ build_csr_test() {
     cd "$PROJECT_ROOT"
 }
 
+# Build ZMQ server
+build_zmq_server() {
+    log_info "Building ZMQ server..."
+
+    # Set environment variables for the build
+    export SPIKE_INSTALL_DIR="$PROJECT_ROOT/riscv-isa-sim/install"
+    export SPIKE_SOURCE_DIR="$SPIKE_SRC_DIR"
+    export RISCV_PATH="$RISCV_TOOLCHAIN"
+
+    # Create build directory
+    mkdir -p "$BUILD_DIR/zmq"
+
+    # Get ZMQ CFLAGS and LIBS
+    ZMQ_CFLAGS=$(pkg-config --cflags libzmq)
+    ZMQ_LIBS=$(pkg-config --libs libzmq)
+
+    # Compile spike_csr_server.cc
+    cd "$PROJECT_ROOT/src/top"
+    g++ -std=c++17 -fPIC -O2 -Wall -MMD -MP -D_GNU_SOURCE \
+        -I"$PROJECT_ROOT/riscv-isa-sim/install/include/riscv" \
+        -I"$PROJECT_ROOT/riscv-isa-sim/install/include/fesvr" \
+        -I"$PROJECT_ROOT/riscv-isa-sim/install/include/disasm" \
+        -I"$PROJECT_ROOT/riscv-isa-sim/install/include/softfloat" \
+        -I"$PROJECT_ROOT/riscv-isa-sim/build" \
+        -I"$PROJECT_ROOT/riscv-isa-sim/riscv" \
+        -I"$PROJECT_ROOT/riscv-isa-sim" \
+        -I"$PROJECT_ROOT/src/top" \
+        -I"$PROJECT_ROOT/src/top/extensions" \
+        -I"$PROJECT_ROOT/src/top/custom/riscv" \
+        $ZMQ_CFLAGS \
+        -c spike_csr_server.cc -o "$BUILD_DIR/zmq/spike_csr_server.o"
+
+    # Link
+    g++ -Wl,-rpath,"$PROJECT_ROOT/riscv-isa-sim/install/lib" -Wl,--no-as-needed \
+        -L"$PROJECT_ROOT/riscv-isa-sim/install/lib" \
+        -o "$BUILD_DIR/zmq/spike_csr_server" \
+        "$BUILD_DIR/zmq/spike_csr_server.o" \
+        "$BUILD_DIR/extensions/custom_csr.o" \
+        "$BUILD_DIR/extensions/mailbox.o" \
+        "$BUILD_DIR/extensions/spike_wrapper.o" \
+        "$BUILD_DIR/extensions/xperia.o" \
+        "$BUILD_DIR/extensions/xperiv.o" \
+        "$BUILD_DIR/custom/riscv/BF16.o" \
+        "$BUILD_DIR/custom/riscv/custom_expp.o" \
+        "$BUILD_DIR/custom/riscv/MxFp8ActQuant.o" \
+        "$BUILD_DIR/custom/riscv/SoftmaxCore.o" \
+        -lriscv -lsoftfloat -ldisasm -lfesvr -ldl -lpthread \
+        $ZMQ_LIBS
+
+    # Verify executable was built
+    if [ -f "$BUILD_DIR/zmq/spike_csr_server" ]; then
+        log_success "ZMQ server built successfully"
+    else
+        log_error "ZMQ server executable not found"
+        return 1
+    fi
+
+    # Return to project root
+    cd "$PROJECT_ROOT"
+}
+
+# Build ZMQ client
+build_zmq_client() {
+    log_info "Building ZMQ client..."
+
+    # Create build directory
+    mkdir -p "$BUILD_DIR/zmq"
+
+    # Get ZMQ CFLAGS and LIBS
+    ZMQ_CFLAGS=$(pkg-config --cflags libzmq)
+    ZMQ_LIBS=$(pkg-config --libs libzmq)
+
+    # Compile spike_csr_client.cc
+    cd "$PROJECT_ROOT/src/top"
+    g++ -std=c++17 -fPIC -O2 -Wall -MMD -MP \
+        -I"$PROJECT_ROOT/src/top" \
+        -I"$PROJECT_ROOT/src/top/common" \
+        $ZMQ_CFLAGS \
+        -c spike_csr_client.cc -o "$BUILD_DIR/zmq/spike_csr_client.o"
+
+    # Link
+    g++ -Wl,--no-as-needed \
+        -o "$BUILD_DIR/zmq/spike_csr_client" \
+        "$BUILD_DIR/zmq/spike_csr_client.o" \
+        $ZMQ_LIBS
+
+    # Verify executable was built
+    if [ -f "$BUILD_DIR/zmq/spike_csr_client" ]; then
+        log_success "ZMQ client built successfully"
+    else
+        log_error "ZMQ client executable not found"
+        return 1
+    fi
+
+    # Return to project root
+    cd "$PROJECT_ROOT"
+}
+
+# Run ZMQ tests
+run_zmq_tests() {
+    log_info "Running ZMQ tests..."
+
+    # 确保日志目录存在
+    mkdir -p "$LOG_DIR"
+    
+    local ZMQ_SERVER="$BUILD_DIR/zmq/spike_csr_server"
+    local ZMQ_CLIENT="$BUILD_DIR/zmq/spike_csr_client"
+    local FIRMWARE_ELF="$BUILD_DIR/csr/firmware/firmware.elf"
+    local LOG_FILE="$LOG_DIR/info_zmq.log"
+    local SERVER_LOG="$LOG_DIR/zmq_server.log"
+    local CLIENT_LOG="$LOG_DIR/zmq_client.log"
+
+    # Verify files exist
+    if [ ! -f "$ZMQ_SERVER" ]; then
+        log_error "ZMQ server not found at $ZMQ_SERVER"
+        log_error "Please build ZMQ server first: bash build_all.sh -t zmq"
+        return 1
+    fi
+
+    if [ ! -f "$ZMQ_CLIENT" ]; then
+        log_error "ZMQ client not found at $ZMQ_CLIENT"
+        log_error "Please build ZMQ client first: bash build_all.sh -t zmq"
+        return 1
+    fi
+
+    if [ ! -f "$FIRMWARE_ELF" ]; then
+        log_error "CSR firmware not found at $FIRMWARE_ELF"
+        log_error "Please build CSR firmware first: bash build_all.sh -f csr"
+        return 1
+    fi
+
+    # 清理可能存在的旧进程
+    pkill -f "spike_csr_server" 2>/dev/null || true
+    sleep 1
+
+    log_info "Starting ZMQ server..."
+    # 启动服务器（在后台运行）
+    export LD_LIBRARY_PATH="$PROJECT_ROOT/riscv-isa-sim/install/lib:$LD_LIBRARY_PATH"
+    $ZMQ_SERVER "$FIRMWARE_ELF" > "$SERVER_LOG" 2>&1 &
+    SERVER_PID=$!
+    
+    # 等待服务器启动
+    sleep 3
+    
+    # 检查服务器是否成功启动
+    if ! kill -0 $SERVER_PID 2>/dev/null; then
+        log_error "ZMQ server failed to start"
+        cat "$SERVER_LOG" | tail -20
+        return 1
+    fi
+    
+    log_info "Running ZMQ client tests..."
+    # 运行客户端测试
+    $ZMQ_CLIENT "all" 2>&1 | tee "$CLIENT_LOG"
+    
+    # 等待服务器完成
+    sleep 1
+    
+    # 发送退出命令
+    log_info "Sending quit command to server..."
+    $ZMQ_CLIENT "quit" >> "$CLIENT_LOG" 2>&1
+    
+    # 等待服务器进程结束（最多等待 10 秒）
+    local count=0
+    while [ $count -lt 100 ]; do
+        if ! kill -0 $SERVER_PID 2>/dev/null; then
+            log_success "Server exited normally"
+            break
+        fi
+        sleep 0.1
+        count=$((count + 1))
+    done
+    
+    # 如果服务器仍在运行，强制终止
+    if kill -0 $SERVER_PID 2>/dev/null; then
+        log_warning "Server did not exit gracefully (Spike simulation is still running), killing..."
+        kill -9 $SERVER_PID 2>/dev/null || true
+        sleep 1
+    fi
+    
+    log_success "ZMQ tests completed. Logs saved to $LOG_DIR"
+    echo "Server log: $SERVER_LOG"
+    echo "Client log: $CLIENT_LOG"
+}
+
 # Show help
 show_help() {
     cat << EOF
@@ -567,10 +752,10 @@ Options:
   -c, --clean             Clean build directories before building
   -s, --spike             Build only Spike
   -f, --firmware [TYPE]   Build firmware (TYPE: insn|mailbox|fuse|csr|all, default: all)
-  -t, --top [TYPE]        Build top wrappers (TYPE: insn|mailbox|csr|all, default: all)
-  -r, --run-tests [TYPE]  Build and run tests (TYPE: insn|mailbox|fuse|csr|all, default: all)
+  -t, --top [TYPE]        Build top wrappers (TYPE: insn|mailbox|csr|zmq|all, default: all)
+  -r, --run-tests [TYPE]  Build and run tests (TYPE: insn|mailbox|fuse|csr|zmq|all, default: all)
   -d, --debug-fuse        Run fuse debug directly (skip all builds)
-  --all                   Build everything and run all tests (insn + mailbox + fuse)
+  --all                   Build everything and run all tests (insn + mailbox + fuse + zmq)
   --riscv PATH            Set RISC-V toolchain path (default: /opt/riscv)
   --spike-src PATH        Set Spike source path (default: ./riscv-isa-sim)
 
@@ -586,15 +771,17 @@ Examples:
   $0                      # Build everything and run all tests
   $0 --clean              # Clean and build everything
   $0 --spike --firmware   # Build only Spike and firmware
-  $0 -t                   # Build all top wrappers (spike_insn + spike_mailbox + spike_csr)
+  $0 -t                   # Build all top wrappers (spike_insn + spike_mailbox + spike_csr + zmq)
   $0 -t insn              # Build only spike_insn
   $0 -t mailbox           # Build only spike_mailbox
   $0 -t csr               # Build only spike_csr
-  $0 -r                   # Build and run all tests (insn + mailbox + fuse + csr)
+  $0 -t zmq               # Build only ZMQ server and client
+  $0 -r                   # Build and run all tests (insn + mailbox + fuse + csr + zmq)
   $0 -r insn              # Build and run spike_insn tests only
   $0 -r mailbox           # Build and run mailbox tests only
   $0 -r fuse              # Build and run fuse tests only
   $0 -r csr               # Build and run CSR tests only
+  $0 -r zmq               # Build and run ZMQ tests only
   $0 --firmware csr       # Build only CSR firmware
   $0 --all                # Build everything and run all tests
   $0 -d                   # Run fuse debug directly (skip builds)
@@ -611,10 +798,12 @@ parse_args() {
     local build_top_flag=0
     local build_mailbox_test_flag=0
     local build_csr_test_flag=0
+    local build_zmq_flag=0
     local run_insn_tests_flag=0
     local run_mailbox_tests_flag=0
     local run_fuse_tests_flag=0
     local run_csr_tests_flag=0
+    local run_zmq_tests_flag=0
     local run_fuse_debug_flag=0
 
     if [ $# -lt 1 ]; then
@@ -646,7 +835,7 @@ parse_args() {
                 build_top_flag=1
                 build_mailbox_test_flag=1
                 build_csr_test_flag=1
-                # Check for optional type argument (insn|mailbox|csr|all)
+                # Check for optional type argument (insn|mailbox|csr|zmq|all)
                 if [[ -n "$2" && "$2" != -* ]]; then
                     case "$2" in
                         insn)
@@ -660,6 +849,12 @@ parse_args() {
                         csr)
                             build_top_flag=0
                             build_mailbox_test_flag=0
+                            ;;
+                        zmq)
+                            build_top_flag=0
+                            build_mailbox_test_flag=0
+                            build_csr_test_flag=0
+                            build_zmq_flag=1
                             ;;
                         all)
                             # Default behavior - all
@@ -674,9 +869,10 @@ parse_args() {
                 build_firmware_flag="all"
                 build_top_flag=1
                 build_mailbox_test_flag=1
+                build_zmq_flag=1
                 run_insn_tests_flag=1
                 run_mailbox_tests_flag=1
-                # Check for optional type argument (insn|mailbox|fuse|csr|all)
+                # Check for optional type argument (insn|mailbox|fuse|csr|zmq|all)
                 if [[ -n "$2" && "$2" != -* ]]; then
                     case "$2" in
                         insn)
@@ -684,11 +880,13 @@ parse_args() {
                             build_mailbox_test_flag=0
                             run_fuse_tests_flag=0
                             run_csr_tests_flag=0
+                            run_zmq_tests_flag=0
                             ;;
                         mailbox)
                             run_insn_tests_flag=0
                             run_fuse_tests_flag=0
                             run_csr_tests_flag=0
+                            run_zmq_tests_flag=0
                             ;;
                         fuse)
                             # 仅运行 fuse 测试
@@ -698,18 +896,28 @@ parse_args() {
                             build_mailbox_test_flag=0
                             run_fuse_tests_flag=1
                             run_csr_tests_flag=0
+                            run_zmq_tests_flag=0
                             ;;
                         csr)
                             # 仅运行 CSR 测试
                             run_insn_tests_flag=0
                             run_mailbox_tests_flag=0
                             run_fuse_tests_flag=0
-                            run_csr_tests_flag=1
+                            run_zmq_tests_flag=0
+                            ;;
+                        zmq)
+                            # 仅运行 ZMQ 测试
+                            run_insn_tests_flag=0
+                            run_mailbox_tests_flag=0
+                            run_fuse_tests_flag=0
+                            run_csr_tests_flag=0
+                            run_zmq_tests_flag=1
                             ;;
                         all)
                             # 默认行为 - 运行所有测试
                             run_fuse_tests_flag=1
                             run_csr_tests_flag=1
+                            run_zmq_tests_flag=1
                             ;;
                     esac
                     shift
@@ -717,6 +925,7 @@ parse_args() {
                     # 无参数时默认运行所有测试
                     run_fuse_tests_flag=1
                     run_csr_tests_flag=1
+                    run_zmq_tests_flag=1
                 fi
                 shift
                 ;;
@@ -804,6 +1013,11 @@ parse_args() {
         build_csr_test
     fi
     
+    if [ $build_zmq_flag -eq 1 ]; then
+        build_zmq_server
+        build_zmq_client
+    fi
+    
     # Run tests if requested
     if [ $run_insn_tests_flag -eq 1 ]; then
         run_insn_tests
@@ -821,6 +1035,11 @@ parse_args() {
     # Run CSR tests if requested
     if [ $run_csr_tests_flag -eq 1 ]; then
         run_csr_tests
+    fi
+
+    # Run ZMQ tests if requested
+    if [ $run_zmq_tests_flag -eq 1 ]; then
+        run_zmq_tests
     fi
 
     # Run fuse debug if requested
@@ -854,6 +1073,7 @@ main() {
     log_info "  - info_mailbox.log   (mailbox test output)"
     log_info "  - info_fuse.log      (fuse test output)"
     log_info "  - info_csr.log       (CSR test output)"
+    log_info "  - info_zmq.log       (ZMQ test output)"
     log_info "  - info_fuse-debug.log (fuse debug output)"
 }
 
