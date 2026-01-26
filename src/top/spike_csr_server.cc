@@ -144,13 +144,17 @@ public:
             }
         }
         
+        std::cout << "[Spike] Starting async simulation thread..." << std::endl;
         thread_ = std::thread([this]() {
             try {
+                std::cout << "[Spike] Simulation thread started" << std::endl;
                 sim_->run();
+                std::cout << "[Spike] Simulation thread completed" << std::endl;
             } catch (const std::exception& e) {
                 std::cerr << "[Spike] Runtime error: " << e.what() << std::endl;
             }
         });
+        std::cout << "[Spike] Async simulation thread created" << std::endl;
     }
     
     void wait() {
@@ -212,11 +216,17 @@ private:
 class ZMQServer {
 public:
     ZMQServer(SpikeInstance& spike, const std::string& endpoint = "tcp://*:5555")
-        : spike_(spike), endpoint_(endpoint), context_(1), socket_(context_, ZMQ_REP), running_(false) {}
+        : spike_(spike), endpoint_(endpoint), context_(), socket_(context_, ZMQ_REP), running_(false) {}
     
     void start() {
-        socket_.bind(endpoint_);
-        std::cout << "[ZMQ] Server started on " << endpoint_ << std::endl;
+        try {
+            socket_.bind(endpoint_);
+            std::cout << "[ZMQ] Server started on " << endpoint_ << std::endl;
+        } catch (const zmq::error_t& e) {
+            std::cerr << "[ZMQ] Failed to bind to endpoint " << endpoint_ << ": " << e.what() << std::endl;
+            std::cerr << "[ZMQ] Please check if the port is already in use or if the endpoint is valid" << std::endl;
+            throw;
+        }
     }
     
     void stop() {

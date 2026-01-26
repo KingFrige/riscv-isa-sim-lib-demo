@@ -199,11 +199,10 @@ build_mailbox_firmware() {
 build_top_wrapper() {
     log_info "Building top wrapper..."
     
-    # Create build directory
-    mkdir -p "$TOP_BUILD_DIR"
+    # Create build directories
+    mkdir -p "$BUILD_DIR/insn" "$BUILD_DIR/mailbox" "$BUILD_DIR/csr"
     
     # Set environment variables for the build
-    # Use the existing Spike installation that's already in riscv-isa-sim/install
     export SPIKE_INSTALL_DIR="$PROJECT_ROOT/riscv-isa-sim/install"
     export SPIKE_SOURCE_DIR="$SPIKE_SRC_DIR"
     export RISCV_PATH="$RISCV_TOOLCHAIN"
@@ -211,39 +210,17 @@ build_top_wrapper() {
     # Change to top directory and build the wrapper
     cd "$PROJECT_ROOT/src/top"
     
-    # Define the proper build directory (in the project root)
-    TOP_BUILD_DIR="$PROJECT_ROOT/build/top"
-    
     # Check if Spike is already built by checking for required libraries
     if [ ! -f "$PROJECT_ROOT/riscv-isa-sim/install/lib/libriscv.so" ]; then
         log_info "Required Spike libraries not found, building Spike libraries first..."
-        make build_spike BUILD_DIR="$TOP_BUILD_DIR"
+        make BUILD_DIR="$BUILD_DIR" build_spike
     else
         log_info "Using existing Spike installation at $PROJECT_ROOT/riscv-isa-sim/install"
     fi
     
-    log_info "Building top wrapper executable..."
-    make BUILD_DIR="$TOP_BUILD_DIR"
+    log_info "Building top wrapper executables..."
+    make BUILD_DIR="$BUILD_DIR" build_insn_test build_mailbox_test build_csr_test
     
-    # Copy the built executables to the project build directory
-    mkdir -p "$BUILD_DIR/insn" "$BUILD_DIR/mailbox"
-    if [ -f "$TOP_BUILD_DIR/insn/spike_insn" ]; then
-        cp "$TOP_BUILD_DIR/insn/spike_insn" "$BUILD_DIR/insn/"
-        log_success "INSN wrapper executable copied to $BUILD_DIR/insn/"
-    else
-        log_error "INSN wrapper executable not found"
-        return 1
-    fi
-    
-    # Copy firmware if built
-    if [ -f "$TOP_BUILD_DIR/firmware/insn/firmware.elf" ]; then
-        mkdir -p "$BUILD_DIR/insn/firmware"
-        cp "$TOP_BUILD_DIR/firmware/insn/firmware.elf" "$BUILD_DIR/insn/firmware/"
-        log_success "Firmware copied to $BUILD_DIR/insn/firmware/"
-    fi
-    
-    # Return to project root
-    cd "$PROJECT_ROOT"
     log_success "Top wrapper built successfully"
 }
 
@@ -326,7 +303,7 @@ build_mailbox_firmware() {
     log_info "Building mailbox firmware..."
     
     # Create build directory
-    mkdir -p "$BUILD_DIR/firmware/mailbox"
+    mkdir -p "$BUILD_DIR/mailbox/firmware"
     
     # Set required environment variable
     export RISCV_PATH="$RISCV_TOOLCHAIN"
@@ -334,19 +311,14 @@ build_mailbox_firmware() {
     # Change to mailbox firmware directory and build
     cd "$PROJECT_ROOT/src/top/firmware/mailbox"
     
-    # Set RISCV_PREFIX for the toolchain
-    export RISCV_PREFIX="$RISCV_TOOLCHAIN/bin/riscv64-unknown-elf-"
-    
-    # Build the mailbox firmware
-    # Use the current directory as PROJECT_ROOT and set FIRMWARE_DIR to current directory
-    make RISCV_PREFIX="$RISCV_PREFIX" PROJECT_ROOT="." FIRMWARE_DIR="." BUILD_DIR="build"
-    
-    # Copy the built firmware to the project build directory
-    if [ -f "build/firmware.elf" ]; then
-        cp "build/firmware.elf" "$BUILD_DIR/firmware/mailbox/"
-        log_success "Mailbox firmware copied to $BUILD_DIR/firmware/mailbox/"
+    # Build the firmware - Makefile will output to BUILD_DIR automatically
+    make RISCV_PATH="$RISCV_TOOLCHAIN" BUILD_DIR="$BUILD_DIR/mailbox/firmware"
+
+    # Verify firmware was built
+    if [ -f "$BUILD_DIR/mailbox/firmware/firmware.elf" ]; then
+        log_success "Mailbox firmware built to $BUILD_DIR/mailbox/firmware/firmware.elf"
     else
-        log_error "Mailbox firmware not found"
+        log_error "Mailbox firmware not found at $BUILD_DIR/mailbox/firmware/firmware.elf"
         return 1
     fi
     
@@ -359,7 +331,7 @@ build_fuse_firmware() {
     log_info "Building fuse firmware..."
     
     # Create build directory
-    mkdir -p "$BUILD_DIR/firmware/fuse"
+    mkdir -p "$BUILD_DIR/fuse/firmware"
     
     # Set required environment variable
     export RISCV_PATH="$RISCV_TOOLCHAIN"
@@ -371,11 +343,11 @@ build_fuse_firmware() {
     export RISCV_PREFIX="$RISCV_TOOLCHAIN/bin/riscv64-unknown-elf-"
     
     # Build the fuse firmware
-    make RISCV_PREFIX="$RISCV_PREFIX" BUILD_DIR="$BUILD_DIR/firmware/fuse" all
+    make RISCV_PREFIX="$RISCV_PREFIX" BUILD_DIR="$BUILD_DIR/fuse/firmware" all
     
     # Verify firmware was built
-    if [ -f "$BUILD_DIR/firmware/fuse/firmware.elf" ]; then
-        log_success "Fuse firmware built to $BUILD_DIR/firmware/fuse/firmware.elf"
+    if [ -f "$BUILD_DIR/fuse/firmware/firmware.elf" ]; then
+        log_success "Fuse firmware built to $BUILD_DIR/fuse/firmware/firmware.elf"
     else
         log_error "Fuse firmware not found"
         return 1
@@ -435,7 +407,7 @@ run_fuse_tests() {
     
     # 捕获标准输出和日志文件
     local LOG_FILE="$LOG_DIR/info_fuse.log"
-    make run_mailbox_test BUILD_DIR="$BUILD_DIR" LOG_DIR="$LOG_DIR" FIRMWARE_ELF="$BUILD_DIR/firmware/fuse/firmware.elf" 2>&1 | tee "$LOG_FILE"
+    make run_mailbox_test BUILD_DIR="$BUILD_DIR" LOG_DIR="$LOG_DIR" FIRMWARE_ELF="$BUILD_DIR/fuse/firmware/firmware.elf" 2>&1 | tee "$LOG_FILE"
     
     cd "$PROJECT_ROOT"
     log_success "Fuse tests completed. Log saved to $LOG_FILE"
@@ -454,7 +426,7 @@ run_fuse_debug() {
     export RISCV_PATH="$RISCV_TOOLCHAIN"
     export LD_LIBRARY_PATH="$SPIKE_INSTALL_DIR/lib:$LD_LIBRARY_PATH"
 
-    local FIRMWARE_ELF="$BUILD_DIR/firmware/fuse/firmware.elf"
+    local FIRMWARE_ELF="$BUILD_DIR/fuse/firmware/firmware.elf"
     local SPIKE_MAILBOX="$BUILD_DIR/mailbox/spike_mailbox"
     local LOG_FILE="$LOG_DIR/info_fuse-debug.log"
 
@@ -704,7 +676,7 @@ run_zmq_tests() {
 
     log_info "Starting ZMQ server..."
     # 启动服务器（在后台运行）
-    $ZMQ_SERVER "$FIRMWARE_ELF" > "$SERVER_LOG" 2>&1 &
+    $ZMQ_SERVER "$FIRMWARE_ELF" "tcp://*:5555" > "$SERVER_LOG" 2>&1 &
     SERVER_PID=$!
     
     # 等待服务器启动
@@ -954,15 +926,18 @@ parse_args() {
                 shift
                 ;;
             --all)
-                # Build everything and run tests (insn + mailbox + fuse + csr)
+                # Build everything and run tests (insn + mailbox + fuse + csr + zmq)
                 build_spike_flag=1
                 build_firmware_flag="all"
                 build_top_flag=1
                 build_mailbox_test_flag=1
+                build_csr_test_flag=1
+                build_zmq_flag=1
                 run_insn_tests_flag=1
                 run_mailbox_tests_flag=1
                 run_fuse_tests_flag=1
                 run_csr_tests_flag=1
+                run_zmq_tests_flag=1
                 run_fuse_debug_flag=0  # Debug mode is separate
                 shift
                 ;;

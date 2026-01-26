@@ -45,17 +45,17 @@ RISCV_PATH ?= /home/korben/tools/riscv/master-v20251230
 
 # Source files for spike_insn (INSN test)
 SPIKE_INSN_SRC = $(ROOT_DIR)/spike_insn.cc
-SPIKE_INSN_OBJ = $(BUILD_DIR)/spike_insn.o
+SPIKE_INSN_OBJ = $(INSN_BUILD_DIR)/spike_insn.o
 SPIKE_INSN_DEP = $(SPIKE_INSN_OBJ:.o=.d)
 
 # Source files for spike_mailbox (MAILBOX test)
 SPIKE_MAILBOX_SRC = $(ROOT_DIR)/spike_mailbox.cc
-SPIKE_MAILBOX_OBJ = $(BUILD_DIR)/spike_mailbox.o
+SPIKE_MAILBOX_OBJ = $(MAILBOX_BUILD_DIR)/spike_mailbox.o
 SPIKE_MAILBOX_DEP = $(SPIKE_MAILBOX_OBJ:.o=.d)
 
 # Source files for spike_csr (CSR test)
 SPIKE_CSR_SRC = $(ROOT_DIR)/spike_csr.cc
-SPIKE_CSR_OBJ = $(BUILD_DIR)/spike_csr.o
+SPIKE_CSR_OBJ = $(CSR_BUILD_DIR)/spike_csr.o
 SPIKE_CSR_DEP = $(SPIKE_CSR_OBJ:.o=.d)
 
 # =============================================================================
@@ -116,6 +116,19 @@ $(BUILD_DIR)/custom/riscv/%.o: $(CUSTOM_RISCV_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 $(BUILD_DIR)/%.o: $(ROOT_DIR)/%.cc
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+# Specific rules for spike_*.o files to build in their respective directories
+$(INSN_BUILD_DIR)/spike_insn.o: $(ROOT_DIR)/spike_insn.cc
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+$(MAILBOX_BUILD_DIR)/spike_mailbox.o: $(ROOT_DIR)/spike_mailbox.cc
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+$(CSR_BUILD_DIR)/spike_csr.o: $(ROOT_DIR)/spike_csr.cc
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
