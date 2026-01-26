@@ -84,8 +84,9 @@ INCLUDES = \
 	-I$(EXTENSIONS_DIR) \
 	-I$(CUSTOM_RISCV_DIR)
 
-LDFLAGS = -Wl,-rpath,$(SPIKE_LIB_DIR) -Wl,--no-as-needed
-LDLIBS = -lriscv -lsoftfloat -ldisasm -lfesvr -ldl -lpthread
+# 静态链接 Spike 相关库，动态链接系统库
+LDFLAGS = -Wl,--no-as-needed
+LDLIBS_STATIC = -Wl,-Bstatic -lriscv -lsoftfloat -ldisasm -lfesvr -lfdt -Wl,-Bdynamic -ldl -lpthread -lboost_regex -lboost_system
 
 # =============================================================================
 # Default Target
@@ -128,6 +129,7 @@ $(SPIKE_CONFIGURE_STAMP):
 		cd $(SPIKE_BUILD_DIR) && \
 		$(SPIKE_DIR)/configure \
 			--prefix=$(SPIKE_INSTALL_DIR) \
+			--enable-static \
 			CFLAGS="-fPIC -O2" \
 			CXXFLAGS="-fPIC -O2 -std=c++17"; \
 	fi
@@ -137,6 +139,15 @@ $(SPIKE_CONFIGURE_STAMP):
 build_spike: $(SPIKE_CONFIGURE_STAMP)
 	$(MAKE) -C $(SPIKE_BUILD_DIR)
 	$(MAKE) -C $(SPIKE_BUILD_DIR) install
+	@# Copy static libraries if they exist
+	@for lib in libriscv.a libsoftfloat.a; do \
+		if [ -f "$(SPIKE_BUILD_DIR)/$$lib" ]; then \
+			cp "$(SPIKE_BUILD_DIR)/$$lib" "$(SPIKE_LIB_DIR)/" && \
+			echo "Copied $$lib to $(SPIKE_LIB_DIR)/"; \
+		else \
+			echo "Warning: $$lib not found in $(SPIKE_BUILD_DIR)/"; \
+		fi \
+	done
 
 .PHONY: reconfigure_spike
 reconfigure_spike:
@@ -158,7 +169,7 @@ INSN_FIRMWARE_ELF = $(INSN_BUILD_DIR)/firmware/firmware.elf
 # Link spike_insn
 $(INSN_TARGET): $(EXTENSIONS_OBJ) $(SPIKE_INSN_OBJ)
 	@mkdir -p $(dir $@)
-	$(CXX) $(LDFLAGS) -L$(SPIKE_LIB_DIR) -o $@ $^ $(LDLIBS)
+	$(CXX) $(LDFLAGS) -L$(SPIKE_LIB_DIR) -o $@ $^ $(LDLIBS_STATIC)
 
 # Build insn firmware
 .PHONY: build_insn_firmware
@@ -196,12 +207,12 @@ CSR_FIRMWARE_ELF = $(CSR_BUILD_DIR)/firmware/firmware.elf
 # Link spike_mailbox
 $(MAILBOX_TARGET): $(EXTENSIONS_OBJ) $(SPIKE_MAILBOX_OBJ)
 	@mkdir -p $(dir $@)
-	$(CXX) $(LDFLAGS) -L$(SPIKE_LIB_DIR) -o $@ $^ $(LDLIBS)
+	$(CXX) $(LDFLAGS) -L$(SPIKE_LIB_DIR) -o $@ $^ $(LDLIBS_STATIC)
 
 # Link spike_csr
 $(CSR_TARGET): $(EXTENSIONS_OBJ) $(SPIKE_CSR_OBJ)
 	@mkdir -p $(dir $@)
-	$(CXX) $(LDFLAGS) -L$(SPIKE_LIB_DIR) -o $@ $^ $(LDLIBS)
+	$(CXX) $(LDFLAGS) -L$(SPIKE_LIB_DIR) -o $@ $^ $(LDLIBS_STATIC)
 
 # Build mailbox firmware
 .PHONY: build_mailbox_firmware

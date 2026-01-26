@@ -4,17 +4,19 @@
 
 本项目演示如何将 [RISC-V ISA 模拟器 (Spike)](https://github.com/riscv-software-src/riscv-isa-sim) 作为库使用，并与外部模拟器环境集成。项目已进一步扩展，集成了针对 Llama.cpp 的 RISC-V 向量扩展，专门用于 AI 推理加速的自定义指令集扩展。
 
-目前包含六个主要用例：
+目前包含七个主要用例：
 1. **C++ 内存模拟器集成** - 将 Spike 与自定义 C++ 内存模拟器连接
 2. **SystemC 包装器** - 将 Spike 嵌入 SystemC 环境，创建完整的系统级仿真平台
 3. **静态链接 Spike** - 将自定义扩展与 Spike 静态链接，创建独立的可执行文件（已实现）
 4. **AI 推理 RISC-V 向量扩展** - 为 AI 推理实现自定义的 exp、softmax、quant 指令
 5. **Mailbox 通信框架** - 提供主机程序与模拟器固件之间的通信机制
 6. **Fuse 固件测试** - 使用 Mailbox 通信框架测试自定义指令（exp、softmax、quant 等）
+7. **自定义 CSR 功能** - 实现自定义控制状态寄存器，支持 Mail、BO、SE 等同步机制
+8. **ZMQ 通信框架** - 基于 ZeroMQ 的服务器/客户端通信，支持远程 CSR 访问
 
 此外，项目还包含一个实验性扩展示例 (`src/xperimental`)，展示了如何为 Spike 添加自定义指令扩展。
 
-**当前开发状态**: 项目正在推进自定义 CSR (Control and Status Register) 功能开发，用于支持 Mailbox、Barrier Event (BO/SE) 等高级同步机制。
+**当前开发状态**: 项目已完成自定义 CSR (Control and Status Register) 功能实现，包括 Mail、Barrier Event (BO) 和 Synchronization Event (SE) 等高级同步机制，并添加了 ZMQ 通信框架支持远程访问。
 
 ## 技术栈
 
@@ -24,30 +26,44 @@
 - **仿真环境**: SystemC 2.3+ (可选)
 - **工具链**: RISC-V GNU 工具链 (需支持 rv64imafdcv 架构)
 - **AI 推理**: 集成 BFloat16、MxFP8 等 AI 精度处理
+- **通信框架**: ZeroMQ (ZMQ) 用于服务器/客户端通信
+- **CSR 支持**: 自定义 CSR 寄存器实现（Mail、BO、SE 通道）
 
 ## 目录结构
 
 ```
 .
 ├── build/                  # 统一构建输出目录
+│   ├── csr/                # CSR 测试构建输出
+│   │   ├── firmware/       # CSR 固件
+│   │   └── spike_csr       # CSR 测试可执行文件
+│   ├── custom/             # 自定义扩展对象文件
+│   ├── extensions/         # Spike 扩展对象文件
 │   ├── firmware/           # 固件构建输出
-│   │   ├── fuse/          # Fuse 固件（Mailbox 通信 + 指令测试）
-│   │   ├── insn/          # 指令测试固件
-│   │   └── mailbox/       # Mailbox 通信固件
-│   ├── insn/              # spike_insn 构建输出
-│   ├── mailbox/           # spike_mailbox 构建输出
-│   ├── spike/             # Spike 构建缓存
-│   ├── spike-install/     # Spike 安装目录
-│   └── log/               # 测试日志输出
+│   │   ├── csr/            # CSR 测试固件
+│   │   ├── fuse/           # Fuse 固件（Mailbox 通信 + 指令测试）
+│   │   ├── insn/           # 指令测试固件
+│   │   └── mailbox/        # Mailbox 通信固件
+│   ├── insn/               # spike_insn 构建输出
+│   ├── mailbox/            # spike_mailbox 构建输出
+│   ├── spike/              # Spike 构建缓存
+│   ├── spike-install/      # Spike 安装目录
+│   ├── zmq/                # ZMQ 服务器/客户端构建输出
+│   │   ├── spike_csr_server  # ZMQ 服务器
+│   │   └── spike_csr_client  # ZMQ 客户端
+│   └── log/                # 测试日志输出
 ├── docs/                   # 项目文档
 │   ├── insn-decode.jpg     # 指令解码图示
 │   ├── insn.jpg            # 指令图示
 │   ├── rvv_mailbox_dev.md  # Mailbox 设备设计文档
+│   ├── rvv-custom-csr.excalidraw # CSR 设计图（Excalidraw 格式）
 │   ├── rvv-custom-csr.md   # 自定义 CSR 设计文档
 │   ├── rvv-custom-csr.png  # CSR 架构图
 │   └── spike_mailbox.README.md # Mailbox 功能说明
 ├── riscv-isa-sim/          # Spike 子模块 (RISC-V ISA 模拟器)
 ├── src/                    # 源代码目录
+│   ├── common/             # 通用代码
+│   │   └── csr_addr.h      # CSR 地址定义
 │   ├── cpp/                # C++ 内存模拟器集成
 │   │   ├── sw/             # 测试软件
 │   │   ├── util/           # 工具函数
@@ -65,21 +81,18 @@
 │   │   ├── Makefile        # 构建配置
 │   │   └── README.md       # 详细使用说明
 │   ├── top/                # 静态链接 Spike 集成 + AI 扩展
+│   │   ├── common/         # 通用头文件
+│   │   │   └── csr_addr.h  # CSR 地址定义
 │   │   ├── custom/         # 自定义 RISC-V 扩展算法实现
 │   │   │   ├── config.h    # 配置文件
 │   │   │   ├── util.c/h    # 工具函数
-│   │   │   ├── riscv/      # RISC-V 向量扩展实现
-│   │   │   │   ├── BF16.cpp/hpp    # BFloat16 处理单元
-│   │   │   │   ├── custom_expp.cpp/hpp # BF16 e^x 近似计算
-│   │   │   │   ├── MxFp8ActQuant.cpp/hpp # MXFP8 量化核心
-│   │   │   │   └── SoftmaxCore.cpp/hpp # Softmax 计算核心
-│   │   │   ├── gemm/       # GEMM 运算实现
-│   │   │   └── script/     # 数据处理脚本
+│   │   │   └── riscv/      # RISC-V 向量扩展实现
+│   │   │       ├── BF16.cpp/hpp    # BFloat16 处理单元
+│   │   │       ├── custom_expp.cpp/hpp # BF16 e^x 近似计算
+│   │   │       ├── MxFp8ActQuant.cpp/hpp # MXFP8 量化核心
+│   │   │       └── SoftmaxCore.cpp/hpp # Softmax 计算核心
 │   │   ├── extensions/     # 自定义扩展实现
-│   │   │   ├── BF16.cpp/hpp # BFloat16 处理单元
-│   │   │   ├── custom_expp.cpp/hpp # BF16 e^x 近似计算
-│   │   │   ├── MxFp8ActQuant.cpp/hpp # MXFP8 量化核心
-│   │   │   ├── SoftmaxCore.cpp/hpp # Softmax 计算核心
+│   │   │   ├── custom_csr.cc/h    # 自定义 CSR 实现
 │   │   │   ├── decode_macros.h
 │   │   │   ├── extension.h
 │   │   │   ├── insn_macros.h
@@ -93,6 +106,10 @@
 │   │   │   └── xperiv.cc   # 向量扩展（加法、乘法及 AI 指令）
 │   │   ├── firmware/       # 测试固件
 │   │   │   ├── common/     # 通用固件代码
+│   │   │   ├── csr/        # CSR 测试固件
+│   │   │   │   ├── main.c  # CSR 测试主程序
+│   │   │   │   ├── mail_poll.c # Mail 轮询实现
+│   │   │   │   └── Makefile # 构建配置
 │   │   │   ├── fuse/       # Fuse 固件（Mailbox 通信 + 指令测试）
 │   │   │   │   ├── Makefile      # 构建配置
 │   │   │   │   ├── README.md     # 说明文档
@@ -111,6 +128,9 @@
 │   │   │   │   ├── Makefile # 构建配置
 │   │   │   │   └── README.md # 说明文档
 │   │   │   └── generic.mk   # 通用 Makefile 模板
+│   │   ├── spike_csr.cc    # CSR 测试主程序
+│   │   ├── spike_csr_server.cc # ZMQ 服务器
+│   │   ├── spike_csr_client.cc # ZMQ 客户端
 │   │   ├── spike_insn.cc   # 自定义 Spike 主程序（指令测试）
 │   │   ├── spike_mailbox.cc # Mailbox 测试主程序
 │   │   └── Makefile        # 静态链接构建配置
@@ -164,11 +184,14 @@ bash build_all.sh --run-tests insn
 bash build_all.sh --firmware insn    # 仅构建指令固件
 bash build_all.sh --firmware mailbox # 仅构建 Mailbox 固件
 bash build_all.sh --firmware fuse    # 仅构建 Fuse 固件
+bash build_all.sh --firmware csr     # 仅构建 CSR 固件
 bash build_all.sh --firmware all     # 构建所有固件
 
 # 构建特定包装器
 bash build_all.sh --top insn     # 仅构建 spike_insn
 bash build_all.sh --top mailbox  # 仅构建 spike_mailbox
+bash build_all.sh --top csr      # 仅构建 spike_csr
+bash build_all.sh --top zmq      # 仅构建 ZMQ 服务器/客户端
 bash build_all.sh --top all      # 构建所有包装器
 
 # 清理构建目录
@@ -249,6 +272,40 @@ bash run-fuse.sh
 bash build_all.sh -d --debug-fuse
 ```
 
+#### CSR 功能演示
+
+```bash
+# 构建 CSR 固件和测试程序
+bash build_all.sh --firmware csr     # 构建 CSR 固件
+bash build_all.sh --top csr          # 构建 spike_csr
+
+# 运行 CSR 测试
+bash build_all.sh --run-tests csr
+
+# 或者直接运行
+./build/csr/spike_csr build/csr/firmware/firmware.elf --test mail
+```
+
+#### ZMQ 通信框架演示
+
+```bash
+# 构建 ZMQ 服务器和客户端
+bash build_all.sh --top zmq
+
+# 运行 ZMQ 测试（会自动启动服务器并运行客户端测试）
+bash build_all.sh --run-tests zmq
+
+# 手动运行
+# 终端 1：启动服务器
+./build/zmq/spike_csr_server build/csr/firmware/firmware.elf
+
+# 终端 2：运行客户端测试
+./build/zmq/spike_csr_client all
+
+# 发送退出命令
+./build/zmq/spike_csr_client quit
+```
+
 ### 5. 运行特定扩展测试
 
 ```bash
@@ -277,7 +334,9 @@ make all
 - 构建指令测试固件（insn）
 - 构建 Mailbox 通信固件（mailbox）
 - 构建 Fuse 固件（fuse）
-- 构建顶层包装器（spike_insn, spike_mailbox）
+- 构建 CSR 测试固件（csr）
+- 构建顶层包装器（spike_insn, spike_mailbox, spike_csr）
+- 构建 ZMQ 服务器/客户端（spike_csr_server, spike_csr_client）
 - 运行测试
 - 管理构建依赖
 
@@ -285,16 +344,18 @@ make all
 
 | 命令 | 描述 |
 |------|------|
-| `bash build_all.sh` | 构建所有组件 |
+| `bash build_all.sh` | 显示帮助信息 |
 | `bash build_all.sh --all` | 构建所有组件并运行所有测试 |
-| `bash build_all.sh --run-tests` | 构建并运行所有测试（insn + mailbox + fuse） |
+| `bash build_all.sh --run-tests` | 构建并运行所有测试（insn + mailbox + fuse + csr + zmq） |
 | `bash build_all.sh --run-tests insn` | 仅构建并运行指令测试 |
 | `bash build_all.sh --run-tests mailbox` | 仅构建并运行 Mailbox 测试 |
 | `bash build_all.sh --run-tests fuse` | 仅构建并运行 Fuse 测试 |
+| `bash build_all.sh --run-tests csr` | 仅构建并运行 CSR 测试 |
+| `bash build_all.sh --run-tests zmq` | 仅构建并运行 ZMQ 测试 |
 | `bash build_all.sh --clean` | 清理构建目录 |
 | `bash build_all.sh --spike` | 仅构建 Spike |
-| `bash build_all.sh --firmware insn\|mailbox\|fuse\|all` | 构建指定类型的固件 |
-| `bash build_all.sh --top insn\|mailbox\|all` | 构建指定类型的顶层包装器 |
+| `bash build_all.sh --firmware insn\|mailbox\|fuse\|csr\|all` | 构建指定类型的固件 |
+| `bash build_all.sh --top insn\|mailbox\|csr\|zmq\|all` | 构建指定类型的顶层包装器 |
 | `bash build_all.sh -d --debug-fuse` | 单独运行 Fuse 调试（跳过构建） |
 | `bash build_all.sh --help` | 显示帮助信息 |
 | `bash build_all.sh --riscv PATH` | 设置 RISC-V 工具链路径 |
@@ -336,8 +397,9 @@ Spike 作为子模块位于 `riscv-isa-sim/` 目录。构建过程会自动配�
 |------|------|
 | `make all` 或 `make` | 构建静态链接的 `spike_insn` 可执行文件 |
 | `make build_spike` | 构建并安装 Spike 库 |
+| `make build_insn_test` | 构建 `spike_insn` 可执行文件 |
 | `make build_mailbox_test` | 构建 `spike_mailbox` 可执行文件 |
-| `make reconfigure_spike` | 重新配置 Spike 构建 |
+| `make build_csr_test` | 构建 `spike_csr` 可执行文件 |
 | `make run_insn_test` | 运行指令测试程序 |
 | `make run_mailbox_test` | 运行 Mailbox 测试程序 |
 | `make clean` | 清理生成文件 |
@@ -403,6 +465,40 @@ Fuse 固件输出文件：
 - `build/firmware/fuse/firmware.bin`: 原始二进制
 - `build/firmware/fuse/firmware.dump`: 反汇编
 
+### CSR 固件构建
+
+CSR 固件用于测试自定义 CSR 寄存器功能：
+
+```bash
+# 构建 CSR 固件
+bash build_all.sh --firmware csr
+
+# 构建 spike_csr 测试程序
+bash build_all.sh --top csr
+
+# 运行 CSR 测试
+bash build_all.sh --run-tests csr
+```
+
+CSR 固件输出文件：
+- `build/csr/firmware/firmware.elf`: ELF 可执行文件
+
+### ZMQ 通信框架构建
+
+ZMQ 框架提供服务器/客户端通信：
+
+```bash
+# 构建 ZMQ 服务器和客户端
+bash build_all.sh --top zmq
+
+# 运行 ZMQ 测试
+bash build_all.sh --run-tests zmq
+```
+
+ZMQ 输出文件：
+- `build/zmq/spike_csr_server`: ZMQ 服务器可执行文件
+- `build/zmq/spike_csr_client`: ZMQ 客户端可执行文件
+
 ### Mailbox 通信框架构建
 
 Mailbox 框架允许主机程序与运行在 Spike 模拟器中的固件进行通信：
@@ -422,7 +518,16 @@ bash build_all.sh --all
 
 ```
 build/
+├── csr/
+│   ├── firmware/
+│   │   └── firmware.elf      # CSR 测试固件
+│   └── spike_csr             # CSR 测试可执行文件
+├── custom/                   # 自定义扩展对象文件
+│   └── riscv/
+├── extensions/               # Spike 扩展对象文件
 ├── firmware/
+│   ├── csr/
+│   │   └── firmware.elf      # CSR 固件
 │   ├── insn/
 │   │   └── firmware.elf      # 指令测试固件
 │   ├── mailbox/
@@ -436,13 +541,19 @@ build/
 │   └── spike.log             # 执行日志
 ├── mailbox/
 │   ├── spike_mailbox         # Mailbox 测试可执行文件
-│   ├── spike.log             # 执行日志
-│   └── firmware.elf          # Mailbox 固件
+│   └── spike.log             # 执行日志
+├── zmq/
+│   ├── spike_csr_server      # ZMQ 服务器
+│   └── spike_csr_client      # ZMQ 客户端
 └── log/
     ├── info_insn.log         # insn 测试输出
     ├── info_mailbox.log      # mailbox 测试输出
     ├── info_fuse.log         # fuse 测试输出
-    └── info_fuse-debug.log   # fuse 调试输出
+    ├── info_fuse-debug.log   # fuse 调试输出
+    ├── info_csr.log          # csr 测试输出
+    ├── info_zmq.log          # zmq 测试输出
+    ├── zmq_server.log        # ZMQ 服务器日志
+    └── zmq_client.log        # ZMQ 客户端日志
 ```
 
 ## 自定义扩展说明
@@ -512,23 +623,102 @@ Mailbox 设备提供主机与固件之间的通信机制（基于内存映射 I/
 
 ### RVV 自定义 CSR 设计
 
-项目正在开发自定义 CSR 寄存器，用于支持 Mailbox、Barrier Event (BO) 和 Synchronization Event (SE) 等高级同步机制。
+项目已实现自定义 CSR 寄存器，用于支持 Mailbox、Barrier Event (BO) 和 Synchronization Event (SE) 等高级同步机制。
 
 **CSR 寄存器映射：**
 
 | CSR 地址 | 通道 | 寄存器名称 | 位宽 | 功能描述 |
 |---------|------|-----------|------|---------|
-| 0xF20 | Mail | MAIL_DATA0 | 64bit | Mail 数据寄存器 0 |
-| 0xF21 | Mail | MAIL_DATA1 | 64bit | Mail 数据寄存器 1 |
-| 0xF22 | Mail | MAIL_DATA2 | 64bit | Mail 数据寄存器 2 |
-| 0xF23 | Mail | MAIL_DATA3 | 64bit | Mail 数据寄存器 3 |
-| 0xF24 | Mail | MAIL_VALID | 1bit | Mail 有效状态标志 |
-| 0xF25 | Bo done | BO_DONE | 11bit | 完成信号（5bit wg_index + 6bit bar_index） |
-| 0xF26 | Se up | SE_UP | 11bit | 更新信号（5bit wg_index + 6bit bar_index） |
-| 0xF27 | Se query | SE_QUERY_LOCK | 11bit | 查询锁信号（5bit wg_index + 6bit bar_index） |
-| 0xF28 | Se query | SE_QUERY_COUNT | - | 查询计数寄存器 |
+| 0xBC0 | Mail | MAIL_DATA0 | 64bit | Mail 数据寄存器 0 |
+| 0xBC1 | Mail | MAIL_DATA1 | 64bit | Mail 数据寄存器 1 |
+| 0xBC2 | Mail | MAIL_DATA2 | 64bit | Mail 数据寄存器 2 |
+| 0xBC3 | Mail | MAIL_DATA3 | 64bit | Mail 数据寄存器 3 |
+| 0xBC4 | Mail | MAIL_VALID | 1bit | Mail 有效状态标志 |
+| 0xBC5 | Bo done | BO_DONE | 11bit | 完成信号（5bit wg_index + 6bit bar_index） |
+| 0xBC6 | Se up | SE_UP | 11bit | 更新信号（5bit wg_index + 6bit bar_index） |
+| 0xBC7 | Se query | SE_QUERY_LOCK | 11bit | 查询锁信号（5bit wg_index + 6bit bar_index） |
+| 0xBC8 | Se query | SE_QUERY_COUNT | - | 查询计数寄存器 |
+
+**CSR 地址定义：**
+
+CSR 地址定义统一在 `src/top/common/csr_addr.h` 中：
+
+```c
+#define CSR_MAIL_DATA0      0xBC0
+#define CSR_MAIL_DATA1      0xBC1
+#define CSR_MAIL_DATA2      0xBC2
+#define CSR_MAIL_DATA3      0xBC3
+#define CSR_MAIL_VALID      0xBC4
+#define CSR_BO_DONE         0xBC5
+#define CSR_SE_UP           0xBC6
+#define CSR_SE_QUERY_LOCK   0xBC7
+#define CSR_SE_QUERY_COUNT  0xBC8
+```
+
+**Mail 通道详细说明：**
+
+Mail 通道用于通过 scheduler ring buffer 发送邮件，最大支持 256bit 数据。
+
+**数据传输流程：**
+1. 主机写入 4 个 64bit 数据到 CSR 0xBC0-0xBC3
+2. 主机写入 CSR 0xBC4 置位 mail valid，通知 RVV 获取 mail
+3. RVV 通过轮询 CSR 0xBC4 查询 mail 状态
+4. 当 valid 为高时，RVV 依次读取 CSR 0xBC0-0xBC3 获取 256bit 数据
+5. 读取完成后，RVV 写入 CSR 0xBC4 清除 valid
+
+**Se query 通道详细说明：**
+
+Se query 通道用于查询操作的同步机制。
+
+**操作流程：**
+1. RVV 写入 CSR 0xBC7，data[5:0]=bar_index，data[10:6]=wg_index，发送 lock pulse
+2. 同时将 query_cnt 清零
+3. 每次收到 notify pulse，query_cnt 加 1
+4. RVV 查询 CSR 0xBC8，如果大于 0 表示上游有信号发送
+5. RVV 写入 CSR 0xBC8 对 query_cnt 做减法操作（减少值不能大于查询得到的值）
+
+**Se up 通道详细说明：**
+
+Se up 通道用于更新操作。
+
+**操作方式：**
+- RVV 写入 CSR 0xBC6，data[5:0]=bar_index，data[10:6]=wg_index，发送 se_up_done
+
+**Bo done 通道详细说明：**
+
+Bo done 通道用于完成信号通知。
+
+**操作方式：**
+- RVV 写入 CSR 0xBC5，data[5:0]=bar_index，data[10:6]=wg_index，发送 bo_done
 
 详细设计请参考 `docs/rvv-custom-csr.md`。
+
+### ZMQ 通信框架
+
+ZMQ 框架提供基于 ZeroMQ 的服务器/客户端通信，支持远程 CSR 访问。
+
+**组件：**
+
+- **spike_csr_server**: ZMQ 服务器，运行 Spike 模拟器并监听客户端请求
+- **spike_csr_client**: ZMQ 客户端，向服务器发送 CSR 读写请求
+
+**支持的命令：**
+
+- `all`: 运行所有测试
+- `quit`: 退出服务器
+
+**使用方式：**
+
+```bash
+# 启动服务器
+./build/zmq/spike_csr_server build/csr/firmware/firmware.elf
+
+# 运行客户端测试
+./build/zmq/spike_csr_client all
+
+# 退出服务器
+./build/zmq/spike_csr_client quit
+```
 
 ### 扩展开发
 
@@ -539,6 +729,7 @@ Mailbox 设备提供主机与固件之间的通信机制（基于内存映射 I/
 3. 通过静态链接方式加载
 4. 提供对应的测试软件（参考 `src/top/firmware/insn/main.c`）
 5. 将算法实现放在 `src/top/custom/riscv/` 目录中，避免外部依赖
+6. 如果涉及 CSR 寄存器，在 `src/top/common/csr_addr.h` 中定义地址
 
 ### 自定义扩展目录结构
 
@@ -546,23 +737,27 @@ Mailbox 设备提供主机与固件之间的通信机制（基于内存映射 I/
 
 - `src/top/custom/riscv/`: 独立的算法实现和单元测试
 - `src/top/extensions/`: Spike 扩展实现（静态链接方式）
+- `src/top/common/`: 通用头文件（如 CSR 地址定义）
 
 这种结构允许：
 
 - 独立的算法开发和测试（在 custom 目录中）
 - 与 Spike 静态链接时的自包含实现
 - 避免构建时的外部依赖问题
+- 统一的 CSR 地址管理
 
 ## 开发约定
 
 ### 代码组织
 
 1. **模块分离**: 每个用例有独立目录，包含完整的构建和测试设施
-2. **头文件管理**: 公共头文件放置在对应目录的根级别
+2. **头文件管理**: 公共头文件放置在对应目录的根级别，通用定义放在 `common/` 目录
 3. **测试软件**: 每个演示都有对应的测试软件目录 (`sw/` 或 `firmware/`)
 4. **AI 扩展**: 算法实现在 `src/top/custom/riscv/` 中，Spike 扩展在 `src/top/extensions/` 中
 5. **Mailbox 框架**: 固件在 `firmware/mailbox/` 和 `firmware/fuse/`，设备实现在 `extensions/mailbox.cc`
-6. **固件类型**: `insn/` 用于指令测试，`mailbox/` 用于通信测试，`fuse/` 用于 Mailbox 通信测试
+6. **CSR 功能**: 固件在 `firmware/csr/`，CSR 实现在 `extensions/custom_csr.cc`，地址定义在 `common/csr_addr.h`
+7. **ZMQ 通信**: 服务器实现在 `spike_csr_server.cc`，客户端在 `spike_csr_client.cc`
+8. **固件类型**: `insn/` 用于指令测试，`mailbox/` 用于通信测试，`fuse/` 用于 Mailbox 通信测试，`csr/` 用于 CSR 测试
 
 ### 构建系统
 
@@ -572,6 +767,7 @@ Mailbox 设备提供主机与固件之间的通信机制（基于内存映射 I/
 - 提供 `clean` 目标确保可重复构建
 - Spike 构建通过子模块和自动化脚本管理
 - 固件构建使用 `generic.mk` 通用模板
+- CSR 地址定义统一在 `common/csr_addr.h` 中
 
 ### 扩展开发
 
@@ -582,6 +778,8 @@ Mailbox 设备提供主机与固件之间的通信机制（基于内存映射 I/
 3. 通过静态链接方式加载
 4. 提供对应的测试软件
 5. 将算法实现放在 `src/top/custom/` 目录中，避免外部依赖
+6. 如果涉及 CSR，在 `common/csr_addr.h` 中定义地址
+7. 在 `extensions/custom_csr.cc` 中实现 CSR 类
 
 ## 测试和验证
 
@@ -594,6 +792,7 @@ Mailbox 设备提供主机与固件之间的通信机制（基于内存映射 I/
 - `src/top/firmware/insn/`: 静态链接演示的测试固件（包含 AI 指令测试）
 - `src/top/firmware/fuse/`: Fuse 固件（Mailbox 通信测试自定义指令）
 - `src/top/firmware/mailbox/`: Mailbox 通信测试固件
+- `src/top/firmware/csr/`: CSR 测试固件
 - `src/xperimental/xperimental_sw/`: 自定义扩展测试程序
 
 ### 运行验证
@@ -604,6 +803,8 @@ Mailbox 设备提供主机与固件之间的通信机制（基于内存映射 I/
 4. **日志分析**: 通过 `-l` 和 `--log` 参数生成执行日志
 5. **Mailbox 验证**: 使用 `spike_mailbox` 测试主机与固件的通信
 6. **Fuse 验证**: 使用 `spike_mailbox` 运行 fuse 固件测试 Mailbox 通信
+7. **CSR 验证**: 使用 `spike_csr` 测试自定义 CSR 寄存器功能
+8. **ZMQ 验证**: 使用 ZMQ 服务器/客户端测试远程通信
 
 ### 调试支持
 
@@ -612,6 +813,8 @@ Mailbox 设备提供主机与固件之间的通信机制（基于内存映射 I/
 - **JTAG 接口**: 集成 Spike 的 JTAG DTM 模块
 - **自定义扩展调试**: 扩展实现中包含 fprintf 输出用于调试
 - **Fuse 调试**: 使用 `-d --debug-fuse` 单独运行 Fuse 调试模式
+- **CSR 调试**: 使用 `spike_csr` 的 `--test mail` 参数测试 Mail 通道
+- **ZMQ 调试**: 查看 `log/zmq_server.log` 和 `log/zmq_client.log`
 
 ## 测试框架和预期结果校验
 
@@ -626,6 +829,8 @@ Mailbox 设备提供主机与固件之间的通信机制（基于内存映射 I/
 5. **AI 精度测试**: 针对 BF16、MXFP8 等 AI 精度进行专门测试
 6. **LMUL 测试**: 针对不同向量长度乘数（1/2/4/8）进行测试
 7. **Mailbox 通信测试**: 使用 Fuse 固件测试 Mailbox 通信框架
+8. **CSR 功能测试**: 使用 CSR 固件测试自定义 CSR 寄存器
+9. **ZMQ 通信测试**: 使用 ZMQ 服务器/客户端测试远程通信
 
 ### 测试错误代码
 
@@ -662,6 +867,9 @@ Mailbox 设备提供主机与固件之间的通信机制（基于内存映射 I/
 - QUANT 向量量化扩展 (`quant`)
 - Mailbox 通信框架（支持新 DATA0-3 接口）
 - Fuse 固件 Mailbox 通信测试（支持 exp/quant/softmax）
+- 自定义 CSR 寄存器（Mail、BO、SE 通道）
+- CSR 固件测试
+- ZMQ 通信框架
 
 🔧 **已修复的问题**:
 - EXP/softmax/quant 指令的 commit log 显示问题 - 已通过改进扩展实现修复
@@ -669,17 +877,18 @@ Mailbox 设备提供主机与固件之间的通信机制（基于内存映射 I/
 - Mailbox 通信稳定性问题
 - 构建系统整合（统一使用 build_all.sh）
 - Mailbox 寄存器映射更新（使用 DATA0-3 替代 DATA_ADDR/DATA_SIZE/VECTOR_CONFIG）
+- CSR 地址从 0xF20-0xF28 更新为 0xBC0-0xBC8
 
 📋 **待实现功能** (TODO):
-- [ ] 添加自定义 CSR 支持（读写访问）
-- [ ] 使用固件测试自定义 CSR 访问
-- [ ] 集成 Barrier Event (BO) 完成信号
-- [ ] 集成 Synchronization Event (SE) 查询/更新机制
+- [ ] 扩展 CSR 测试覆盖（BO、SE 通道）
+- [ ] 集成更多 Barrier Event (BO) 测试用例
+- [ ] 集成更多 Synchronization Event (SE) 测试用例
+- [ ] ZMQ 通信框架功能扩展
 
 ### 运行测试
 
 ```bash
-# 运行完整测试（包含 AI 指令）
+# 运行完整测试（包含 AI 指令、CSR、ZMQ）
 bash build_all.sh --all
 
 # 运行指令测试
@@ -694,8 +903,16 @@ bash build_all.sh --run-tests
 # 运行 Fuse 测试
 bash build_all.sh --run-tests fuse
 
+# 运行 CSR 测试
+bash build_all.sh --run-tests csr
+
+# 运行 ZMQ 测试
+bash build_all.sh --run-tests zmq
+
 # 查看测试日志
 cat build/log/info_insn.log
+cat build/log/info_csr.log
+cat build/log/info_zmq.log
 
 # 使用快捷脚本运行 Fuse 测试
 bash run-fuse.sh
@@ -721,6 +938,12 @@ Fuse 测试程序 (`src/top/firmware/fuse/main.c`) 包含：
 2. **命令分发**: 支持 HELLO、HI、VECTOR_LOAD、VECTOR_STORE、VECTOR_COMPUTE、SOFTMAX、EXP、QUANT 等命令
 3. **指令测试**: 先运行 test_insn() 执行指令测试
 4. **主循环**: 轮询 Mailbox 状态并处理命令
+
+CSR 测试程序 (`src/top/firmware/csr/main.c`) 包含：
+
+1. **CSR 初始化**: 初始化 CSR 寄存器
+2. **Mail 通道测试**: 测试 Mail 数据传输
+3. **主循环**: 轮询 CSR 状态并处理请求
 
 ### LMUL 测试覆盖
 
@@ -775,9 +998,21 @@ Fuse 测试程序 (`src/top/firmware/fuse/main.c`) 包含：
    - 查看 Fuse 日志：`cat build/log/info_fuse.log`
    - 使用调试模式运行：`bash build_all.sh -d --debug-fuse`
 
-8. **module load 命令不可用**
-   - 手动设置 RISC-V 工具链路径：`export RISCV_TOOLCHAIN=/path/to/riscv/toolchain`
-   - 更新 `set-env.sh` 文件，注释掉 `module load` 行
+8. **CSR 测试失败**
+   - 检查 CSR 固件是否构建：`ls build/csr/firmware/firmware.elf`
+   - 验证 spike_csr 是否正确构建：`ls build/csr/spike_csr`
+   - 查看 CSR 日志：`cat build/log/info_csr.log`
+   - 检查 CSR 地址定义：`cat src/top/common/csr_addr.h`
+
+9. **ZMQ 测试失败**
+   - 检查 ZMQ 是否安装：`pkg-config --exists libzmq && echo "ZMQ installed"`
+   - 检查 ZMQ 服务器是否构建：`ls build/zmq/spike_csr_server`
+   - 检查 ZMQ 客户端是否构建：`ls build/zmq/spike_csr_client`
+   - 查看 ZMQ 日志：`cat build/log/zmq_server.log` 和 `cat build/log/zmq_client.log`
+
+10. **module load 命令不可用**
+    - 手动设置 RISC-V 工具链路径：`export RISCV_TOOLCHAIN=/path/to/riscv/toolchain`
+    - 更新 `set-env.sh` 文件，注释掉 `module load` 行
 
 ### 环境检查
 
@@ -804,9 +1039,20 @@ ls -la build/
 ls build/firmware/insn/    # 指令测试固件
 ls build/firmware/mailbox/ # Mailbox 固件
 ls build/firmware/fuse/    # Fuse 固件
+ls build/csr/firmware/     # CSR 固件
+
+# 检查各可执行文件是否构建
+ls build/insn/spike_insn
+ls build/mailbox/spike_mailbox
+ls build/csr/spike_csr
+ls build/zmq/spike_csr_server
+ls build/zmq/spike_csr_client
 
 # 检查日志
 ls -la build/log/
+
+# 检查 ZMQ
+pkg-config --exists libzmq && echo "ZMQ installed" || echo "ZMQ not installed"
 ```
 
 ## 项目状态
@@ -832,11 +1078,18 @@ ls -la build/log/
 - 更新 Mailbox 寄存器映射（使用 DATA0-3）
 - 添加 exp/quant 命令支持
 - 添加自定义 CSR 设计文档
+- 实现自定义 CSR 寄存器（Mail、BO、SE 通道）
+- 实现 CSR 固件和测试程序
+- 添加 common/csr_addr.h 统一 CSR 地址定义
+- 实现 ZMQ 通信框架
+- 添加 ZMQ 服务器和客户端
+- 更新 CSR 地址映射（0xBC0-0xBC8）
 
 📋 **当前开发中**:
-- 自定义 CSR 寄存器支持（需要添加 CSR 读写功能）
-- 使用固件测试自定义 CSR 访问
-- 集成 Barrier Event (BO) 和 Synchronization Event (SE) 机制
+- 扩展 CSR 测试覆盖（BO、SE 通道）
+- 集成更多 Barrier Event (BO) 测试用例
+- 集成更多 Synchronization Event (SE) 测试用例
+- ZMQ 通信框架功能扩展
 
 **注意**: 避免直接修改 `riscv-isa-sim/` 子模块中的代码，应通过外部层级和编译系统扩展功能。`src/top/` 目录展示了如何在不修改 Spike 源代码的情况下实现静态链接集成。
 
@@ -844,24 +1097,33 @@ ls -la build/log/
 
 ### 新增功能
 
-1. **Fuse 固件测试**: 新增 `firmware/fuse/` 目录，包含 Mailbox 通信测试固件
-2. **Mailbox 通信框架**: 提供主机程序与模拟器固件之间的通信机制
-3. **统一构建系统** (`build_all.sh`): 集中化构建流程，输出到 `build/` 目录
-4. **静态链接 Spike 集成** (`src/top/`): 实现了将自定义扩展与 Spike 静态链接的功能
-5. **AI 指令扩展**: 添加了 exp、softmax、quant 指令用于 AI 推理加速
-6. **改进的构建系统**: 支持静态链接方式，避免动态库依赖问题
-7. **完整测试框架**: 包含预期结果校验和错误报告机制
-8. **LMUL 测试覆盖**: 增加了对不同向量长度乘数 (1/2/4/8) 的测试
-9. **指令编码参考**: 根据 docs/insn-decode.jpg, docs/insn.jpg 实现扩展
-10. **算法集成**: 将算法实现放在 `src/top/custom/riscv/` 目录中
-11. **扩展测试**: 提取测试方法到测试函数中
-12. **Firmware 复杂测试**: 增加更多测试到 firmware 中
-13. **Custom 目录**: 创建 `src/top/custom/` 目录，包含完整的 RISC-V 扩展算法实现
-14. **固件 printf 支持**: 成功集成 printf 功能到固件中
-15. **run-fuse.sh 脚本**: 提供 Fuse 测试的快捷运行方式
-16. **通用固件构建**: 添加 generic.mk 模板统一固件构建配置
-17. **Mailbox 寄存器更新**: 更新为使用 DATA0-3 寄存器接口
-18. **自定义 CSR 设计**: 添加 rvv-custom-csr.md 文档
+1. **自定义 CSR 功能**: 实现自定义 CSR 寄存器支持（Mail、BO、SE 通道）
+2. **CSR 测试固件**: 新增 `firmware/csr/` 目录，包含 CSR 测试固件
+3. **CSR 测试程序**: 新增 `spike_csr.cc`，专门用于测试 CSR 功能
+4. **ZMQ 通信框架**: 新增基于 ZeroMQ 的服务器/客户端通信
+5. **ZMQ 服务器**: 新增 `spike_csr_server.cc`，ZMQ 服务器实现
+6. **ZMQ 客户端**: 新增 `spike_csr_client.cc`，ZMQ 客户端实现
+7. **CSR 地址定义**: 新增 `common/csr_addr.h`，统一 CSR 地址管理
+8. **Custom CSR 扩展**: 新增 `custom_csr.cc/h`，自定义 CSR 实现
+9. **更新 CSR 地址映射**: 从 0xF20-0xF28 更新为 0xBC0-0xBC8
+10. **Fuse 固件测试**: 新增 `firmware/fuse/` 目录，包含 Mailbox 通信测试固件
+11. **Mailbox 通信框架**: 提供主机程序与模拟器固件之间的通信机制
+12. **统一构建系统** (`build_all.sh`): 集中化构建流程，输出到 `build/` 目录
+13. **静态链接 Spike 集成** (`src/top/`): 实现了将自定义扩展与 Spike 静态链接的功能
+14. **AI 指令扩展**: 添加了 exp、softmax、quant 指令用于 AI 推理加速
+15. **改进的构建系统**: 支持静态链接方式，避免动态库依赖问题
+16. **完整测试框架**: 包含预期结果校验和错误报告机制
+17. **LMUL 测试覆盖**: 增加了对不同向量长度乘数 (1/2/4/8) 的测试
+18. **指令编码参考**: 根据 docs/insn-decode.jpg, docs/insn.jpg 实现扩展
+19. **算法集成**: 将算法实现放在 `src/top/custom/riscv/` 目录中
+20. **扩展测试**: 提取测试方法到测试函数中
+21. **Firmware 复杂测试**: 增加更多测试到 firmware 中
+22. **Custom 目录**: 创建 `src/top/custom/` 目录，包含完整的 RISC-V 扩展算法实现
+23. **固件 printf 支持**: 成功集成 printf 功能到固件中
+24. **run-fuse.sh 脚本**: 提供 Fuse 测试的快捷运行方式
+25. **通用固件构建**: 添加 generic.mk 模板统一固件构建配置
+26. **Mailbox 寄存器更新**: 更新为使用 DATA0-3 寄存器接口
+27. **自定义 CSR 设计**: 添加 rvv-custom-csr.md 文档
 
 ### 修复改进
 
@@ -872,8 +1134,9 @@ ls -la build/log/
 5. **目录结构**: 改进了目录结构，将算法实现与扩展实现分离
 6. **Mailbox 稳定性**: 修复了 Mailbox 通信中的问题
 7. **构建系统**: 统一使用 build_all.sh 管理所有构建
-8. **固件类型**: 分离 insn/mailbox/fuse 固件类型
+8. **固件类型**: 分离 insn/mailbox/fuse/csr 固件类型
 9. **Mailbox 接口**: 更新为使用 DATA0-3 新接口
+10. **CSR 地址**: 更新 CSR 地址映射为 0xBC0-0xBC8
 
 ### 使用建议
 
@@ -883,14 +1146,18 @@ ls -la build/log/
 - 扩展开发时，确保指令编码不与现有指令冲突（使用 CUSTOM0-CUSTOM3 操作码空间）
 - AI 指令参考 `src/top/custom/riscv/` 中的算法实现
 - Mailbox 通信测试使用 `firmware/fuse/` 目录
+- CSR 测试使用 `firmware/csr/` 目录
+- ZMQ 通信测试使用 `build/zmq/` 目录
 - 自定义 CSR 开发参考 `docs/rvv-custom-csr.md`
+- CSR 地址定义参考 `src/top/common/csr_addr.h`
 
 ### 已知限制
 
 - 当前测试固件使用固定内存地址，可能不适用于所有内存布局
 - SystemC 集成需要额外的 SystemC 库安装
 - Mailbox 通信目前仅支持特定的命令集
-- 自定义 CSR 功能正在开发中
+- CSR 功能已实现，但测试覆盖仍需扩展
+- ZMQ 通信框架功能仍在完善中
 
 ## 贡献指南
 
@@ -905,6 +1172,8 @@ ls -la build/log/
 9. 添加新固件类型时，更新 `build_all.sh` 中的构建逻辑
 10. 更新 TODO 列表以跟踪待完成工作
 11. 添加自定义 CSR 功能时，更新 `docs/rvv-custom-csr.md` 文档
+12. CSR 地址定义必须添加到 `src/top/common/csr_addr.h`
+13. 添加 ZMQ 功能时，更新相关文档和测试用例
 
 ## 许可证
 

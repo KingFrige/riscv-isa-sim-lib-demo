@@ -98,11 +98,12 @@ build_spike() {
     "$SPIKE_SRC_DIR/configure" \
         --prefix="$INSTALL_DIR" \
         --enable-commitlog \
+        --enable-static \
         --with-boost \
         --with-boost-asio \
         --with-boost-regex \
-        CXXFLAGS="-O2 -g" \
-        CFLAGS="-O2 -g"
+        CXXFLAGS="-O2 -g -fPIC" \
+        CFLAGS="-O2 -g -fPIC"
     
     # Build
     log_info "Building Spike..."
@@ -120,6 +121,17 @@ build_spike() {
     else
         log_warning "libspike_main.a not found in build directory"
     fi
+    
+    # Copy static libraries if they exist
+    log_info "Copying static libraries..."
+    for lib in libriscv.a libsoftfloat.a; do
+        if [ -f "$lib" ]; then
+            cp "$lib" "$INSTALL_DIR/lib/"
+            log_success "$lib copied to install directory"
+        else
+            log_warning "$lib not found in build directory"
+        fi
+    done
     
     cd "$PROJECT_ROOT"
     log_success "Spike built successfully"
@@ -587,8 +599,8 @@ build_zmq_server() {
         $ZMQ_CFLAGS \
         -c spike_csr_server.cc -o "$BUILD_DIR/zmq/spike_csr_server.o"
 
-    # Link
-    g++ -Wl,-rpath,"$PROJECT_ROOT/riscv-isa-sim/install/lib" -Wl,--no-as-needed \
+    # Link (静态链接 Spike 相关库，动态链接系统库)
+    g++ -Wl,--no-as-needed \
         -L"$PROJECT_ROOT/riscv-isa-sim/install/lib" \
         -o "$BUILD_DIR/zmq/spike_csr_server" \
         "$BUILD_DIR/zmq/spike_csr_server.o" \
@@ -601,7 +613,7 @@ build_zmq_server() {
         "$BUILD_DIR/custom/riscv/custom_expp.o" \
         "$BUILD_DIR/custom/riscv/MxFp8ActQuant.o" \
         "$BUILD_DIR/custom/riscv/SoftmaxCore.o" \
-        -lriscv -lsoftfloat -ldisasm -lfesvr -ldl -lpthread \
+        -Wl,-Bstatic -lriscv -lsoftfloat -ldisasm -lfesvr -lfdt -Wl,-Bdynamic -ldl -lpthread -lboost_regex -lboost_system \
         $ZMQ_LIBS
 
     # Verify executable was built
@@ -692,7 +704,6 @@ run_zmq_tests() {
 
     log_info "Starting ZMQ server..."
     # 启动服务器（在后台运行）
-    export LD_LIBRARY_PATH="$PROJECT_ROOT/riscv-isa-sim/install/lib:$LD_LIBRARY_PATH"
     $ZMQ_SERVER "$FIRMWARE_ELF" > "$SERVER_LOG" 2>&1 &
     SERVER_PID=$!
     
